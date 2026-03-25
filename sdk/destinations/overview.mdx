@@ -1,0 +1,110 @@
+---
+title: "Destinations overview"
+description: "Send AI observability data from OpenLIT to your existing observability stack using standard OTLP"
+---
+
+The OpenLIT SDK sends traces, metrics, and logs using the OpenTelemetry Protocol (OTLP) over HTTP. Any backend that accepts OTLP data — whether a managed SaaS service or a self-hosted stack — can receive data from OpenLIT without any vendor-specific plugins or agents.
+
+## How it works
+
+Configure the destination endpoint and authentication headers in `openlit.init()` or via environment variables:
+
+<Tabs>
+  <Tab title="Python">
+    ```python
+    import openlit
+
+    openlit.init(
+        otlp_endpoint="https://your-otlp-endpoint",
+        otlp_headers="Authorization=Bearer your-token"
+    )
+    ```
+  </Tab>
+  <Tab title="TypeScript">
+    ```typescript
+    import Openlit from 'openlit';
+
+    Openlit.init({
+        otlpEndpoint: 'https://your-otlp-endpoint',
+        otlpHeaders: 'Authorization=Bearer your-token'
+    });
+    ```
+  </Tab>
+  <Tab title="Environment variables">
+    ```shell
+    export OTEL_EXPORTER_OTLP_ENDPOINT="https://your-otlp-endpoint"
+    export OTEL_EXPORTER_OTLP_HEADERS="Authorization=Bearer your-token"
+    ```
+
+    Then initialize with no arguments:
+
+    ```python
+    import openlit
+    openlit.init()
+    ```
+  </Tab>
+</Tabs>
+
+<Note>
+  If you do not set `otlp_endpoint`, the SDK outputs traces to the console. This is useful during development but should not be used in production.
+</Note>
+
+## Supported destinations
+
+<CardGroup cols={2}>
+  <Card
+    title="OpenLIT"
+    href="/sdk/destinations/openlit"
+    icon="server"
+  >
+    Send to a self-hosted OpenLIT platform instance. Default OTLP endpoint: `http://127.0.0.1:4318`.
+  </Card>
+  <Card
+    title="Grafana Cloud"
+    href="/sdk/destinations/grafana"
+    icon="chart-line"
+  >
+    Send to the Grafana Cloud OTLP gateway using Basic Auth with your Instance ID and API token.
+  </Card>
+  <Card
+    title="Datadog"
+    href="/sdk/destinations/datadog"
+    icon="dog"
+  >
+    Send to a local Datadog Agent that forwards traces and metrics to the Datadog backend.
+  </Card>
+  <Card
+    title="OpenTelemetry Collector"
+    href="/sdk/destinations/overview"
+    icon="arrow-right-arrow-left"
+  >
+    Send to any OpenTelemetry Collector instance for fan-out to multiple backends simultaneously.
+  </Card>
+</CardGroup>
+
+## Configuration reference
+
+| Parameter | Environment Variable | Description |
+|---|---|---|
+| `otlp_endpoint` | `OTEL_EXPORTER_OTLP_ENDPOINT` | OTLP HTTP endpoint URL |
+| `otlp_headers` | `OTEL_EXPORTER_OTLP_HEADERS` | Authentication headers as `key=value` pairs, comma-separated |
+| `service_name` | `OTEL_SERVICE_NAME` | Service name shown in your backend |
+| `environment` | `OTEL_DEPLOYMENT_ENVIRONMENT` | Deployment environment (e.g., `production`) |
+
+<Tip>
+  Environment variables take precedence over parameters passed to `openlit.init()`. This lets you manage destination configuration outside your application code, which is recommended for production deployments.
+</Tip>
+
+---
+
+<CardGroup cols={3}>
+  <Card title="Integrations" href="/sdk/integrations/overview" icon="circle-nodes">
+    60+ LLM providers, AI frameworks, and vector databases
+  </Card>
+  <Card title="Configuration" href="/sdk/configuration" icon="sliders">
+    Full reference for all openlit.init() parameters
+  </Card>
+  <Card title="GPU integrations" href="/sdk/integrations/gpu" icon="microchip">
+    Monitor NVIDIA and AMD GPU metrics
+  </Card>
+</CardGroup>

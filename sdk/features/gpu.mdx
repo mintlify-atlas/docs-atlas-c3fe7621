@@ -1,0 +1,99 @@
+---
+title: "GPU monitoring"
+description: "Collect GPU utilization, memory, temperature, and power metrics from NVIDIA and AMD GPUs alongside your LLM traces."
+---
+
+OpenLIT can collect GPU performance metrics from NVIDIA and AMD GPUs during AI training and inference workloads. GPU metrics are exported as OpenTelemetry metrics alongside your existing traces and application metrics.
+
+## Enable GPU monitoring
+
+Set `collect_system_metrics=True` when initialising OpenLIT. This enables comprehensive system monitoring (CPU, memory, disk, network) and automatically enables GPU metrics if a supported GPU is detected:
+
+```python
+import openlit
+
+openlit.init(
+    otlp_endpoint="http://127.0.0.1:4318",
+    collect_system_metrics=True,
+)
+```
+
+<Note>
+  `collect_system_metrics` requires the `opentelemetry-instrumentation-system-metrics` package:
+
+  ```bash
+  pip install opentelemetry-instrumentation-system-metrics
+  ```
+</Note>
+
+If no GPU is detected at startup, OpenLIT logs a message and continues normally — no error is raised.
+
+## Environment variable
+
+You can enable GPU monitoring without code changes:
+
+```bash
+export OPENLIT_COLLECT_SYSTEM_METRICS=true
+export OTEL_EXPORTER_OTLP_ENDPOINT=http://127.0.0.1:4318
+openlit-instrument python your_app.py
+```
+
+## Metrics collected
+
+When a supported GPU is found, OpenLIT collects the following metrics:
+
+| Metric | Description | Unit |
+|---|---|---|
+| `gpu.utilization` | GPU core utilization | Percentage (0–100) |
+| `gpu.memory.used` | GPU memory currently in use | Bytes |
+| `gpu.memory.free` | GPU memory currently free | Bytes |
+| `gpu.memory.total` | Total GPU memory capacity | Bytes |
+| `gpu.memory.utilization` | GPU memory utilization | Percentage (0–100) |
+| `gpu.temperature` | GPU die temperature | Degrees Celsius |
+| `gpu.power.draw` | Current power consumption | Watts |
+| `gpu.fan.speed` | Fan speed | Percentage (0–100) |
+
+## Supported hardware
+
+| Vendor | Detection method |
+|---|---|
+| **NVIDIA** | NVML (NVIDIA Management Library) via `pynvml` |
+| **AMD** | ROCm SMI via `pyrsmi` or `rocm-smi-lib` |
+
+<Tip>
+  For NVIDIA GPUs, install the `pynvml` package: `pip install pynvml`. For AMD GPUs, install the ROCm SMI library appropriate for your ROCm version.
+</Tip>
+
+## SDK configuration parameters
+
+| Parameter | Environment variable | Type | Default | Description |
+|---|---|---|---|---|
+| `collect_system_metrics` | `OPENLIT_COLLECT_SYSTEM_METRICS` | `boolean` | `False` | Enable GPU and system metrics collection |
+| `otlp_endpoint` | `OTEL_EXPORTER_OTLP_ENDPOINT` | `string` | `None` | OTLP endpoint URL |
+| `otlp_headers` | `OTEL_EXPORTER_OTLP_HEADERS` | `string` | `None` | Authentication headers |
+| `service_name` | `OTEL_SERVICE_NAME` | `string` | `"default"` | Service name for telemetry |
+| `environment` | `OTEL_DEPLOYMENT_ENVIRONMENT` | `string` | `"default"` | Deployment environment |
+
+## Deprecated parameter
+
+The `collect_gpu_stats` parameter is deprecated. Replace it with `collect_system_metrics=True`:
+
+```python
+# Deprecated
+openlit.init(collect_gpu_stats=True)
+
+# Recommended
+openlit.init(collect_system_metrics=True)
+```
+
+<CardGroup cols={3}>
+  <Card title="Configuration" href="/sdk/configuration" icon="sliders">
+    Full openlit.init() parameter reference
+  </Card>
+  <Card title="Integrations" href="/sdk/integrations/gpu" icon="server">
+    GPU integration details and requirements
+  </Card>
+  <Card title="Destinations" href="/sdk/destinations/overview" icon="link">
+    Send GPU metrics to Grafana, Datadog, and more
+  </Card>
+</CardGroup>

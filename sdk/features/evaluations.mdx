@@ -1,0 +1,251 @@
+---
+title: "Evaluations"
+description: "Programmatic scoring of LLM outputs for hallucination, bias, and toxicity using the OpenLIT SDK."
+---
+
+OpenLIT provides programmatic evaluators you can call in your application or test suite to score LLM-generated text. Each evaluator uses an LLM (OpenAI or Anthropic) to analyse text against a provided context and returns a structured result.
+
+Evaluation results are automatically exported as OpenTelemetry Log Records or Events, so they appear alongside your traces in any OTel-compatible backend.
+
+The `openlit.evals` module provides four classes:
+
+<CardGroup cols={2}>
+  <Card title="Hallucination" href="#hallucination-detection">
+    Detects factual inaccuracies and contradictions against context
+  </Card>
+  <Card title="BiasDetector" href="#bias-detection">
+    Identifies prejudiced or discriminatory language
+  </Card>
+  <Card title="ToxicityDetector" href="#toxicity-detection">
+    Flags harmful or offensive content
+  </Card>
+  <Card title="All" href="#all-evaluations">
+    Runs all three evaluations in a single call
+  </Card>
+</CardGroup>
+
+## Export configuration
+
+By default, evaluation results are emitted as OTel Log Records, which works well with backends like Grafana Loki. To use OTel Events instead:
+
+```python
+import openlit
+
+openlit.init(evals_logs_export=False)
+```
+
+<Info>
+  Both modes carry the same fields — only the transport differs (log body vs. event attributes).
+</Info>
+
+## Hallucination detection
+
+Compares the generated text against a set of context sentences and identifies factual inaccuracies, contradictions, and nonsensical responses.
+
+```python
+import openlit
+import os
+
+os.environ["OPENAI_API_KEY"] = "<YOUR_API_KEY>"
+
+hallucination_detector = openlit.evals.Hallucination(provider="openai")
+
+result = hallucination_detector.measure(
+    prompt="Discuss Einstein's achievements.",
+    contexts=["Einstein discovered the photoelectric effect and won the Nobel Prize in 1921."],
+    text="Einstein won the Nobel Prize in 1969 for the theory of relativity.",
+)
+print(result)
+# {
+#   "score": 0.9,
+#   "evaluation": "hallucination",
+#   "classification": "factual_inaccuracy",
+#   "explanation": "The Nobel Prize year is incorrect; Einstein won in 1921, not 1969.",
+#   "verdict": "yes"
+# }
+```
+
+### Hallucination class parameters
+
+| Parameter | Type | Default | Description |
+|---|---|---|---|
+| `provider` | `string` | `"openai"` | LLM provider: `"openai"` or `"anthropic"`. |
+| `api_key` | `string` | `None` | Provider API key. Can also be set via `OPENAI_API_KEY` or `ANTHROPIC_API_KEY`. |
+| `model` | `string` | `None` | Specific model (for example, `"gpt-4o"`). |
+| `base_url` | `string` | `None` | Custom base URL for OpenAI-compatible providers. |
+| `custom_categories` | `dict` | `None` | Additional hallucination categories. |
+| `threshold_score` | `float` | `0.5` | Minimum score to return verdict `"yes"`. |
+
+### measure() parameters
+
+| Parameter | Type | Description |
+|---|---|---|
+| `prompt` | `string` | The user prompt that produced the text being evaluated. |
+| `contexts` | `list[str]` | One or more ground-truth sentences the text should align with. |
+| `text` | `string` | The LLM-generated text to evaluate. |
+
+### Hallucination categories
+
+| Category | Description |
+|---|---|
+| `factual_inaccuracy` | Incorrect facts that contradict the provided context |
+| `nonsensical_response` | Irrelevant content unrelated to the context |
+| `gibberish` | Nonsensical or incoherent text |
+| `contradiction` | Statements that conflict with each other or the context |
+
+## Bias detection
+
+Identifies prejudiced or discriminatory language across categories including gender, age, ethnicity, and religion.
+
+```python
+import openlit
+import os
+
+os.environ["OPENAI_API_KEY"] = "<YOUR_API_KEY>"
+
+bias_detector = openlit.evals.BiasDetector(provider="openai")
+
+result = bias_detector.measure(
+    prompt="Discuss workplace equality.",
+    contexts=["Everyone should have equal opportunity regardless of background."],
+    text="Older employees tend to struggle with new technology.",
+)
+```
+
+### BiasDetector class parameters
+
+| Parameter | Type | Default | Description |
+|---|---|---|---|
+| `provider` | `string` | `"openai"` | LLM provider: `"openai"` or `"anthropic"`. |
+| `api_key` | `string` | `None` | Provider API key. |
+| `model` | `string` | `None` | Specific model. |
+| `base_url` | `string` | `None` | Custom base URL. |
+| `custom_categories` | `dict` | `None` | Additional bias categories. |
+| `threshold_score` | `float` | `0.5` | Minimum score to return verdict `"yes"`. |
+
+### Bias categories
+
+| Category | Description |
+|---|---|
+| `sexual_orientation` | Assumptions about sexual preferences |
+| `age` | Age-related stereotypes |
+| `disability` | Stereotypes about people with disabilities |
+| `physical_appearance` | Judgements based on physical look |
+| `religion` | Prejudices about religious beliefs |
+| `pregnancy_status` | Bias towards pregnant individuals |
+| `marital_status` | Bias based on relationship status |
+| `nationality / location` | Bias based on country or place of origin |
+| `gender` | Gender-based stereotypes |
+| `ethnicity` | Racial or ethnic stereotypes |
+| `socioeconomic_status` | Bias based on economic position |
+
+## Toxicity detection
+
+Evaluates text for harmful, offensive, or threatening language.
+
+```python
+import openlit
+import os
+
+os.environ["OPENAI_API_KEY"] = "<YOUR_API_KEY>"
+
+toxicity_detector = openlit.evals.ToxicityDetector(provider="openai")
+
+result = toxicity_detector.measure(
+    prompt="Engage in a respectful discussion about global events.",
+    contexts=["Conversations should remain civil and informative."],
+    text="Your opinion is absurd, and only an idiot would think that.",
+)
+```
+
+### ToxicityDetector class parameters
+
+| Parameter | Type | Default | Description |
+|---|---|---|---|
+| `provider` | `string` | `"openai"` | LLM provider: `"openai"` or `"anthropic"`. |
+| `api_key` | `string` | `None` | Provider API key. |
+| `model` | `string` | `None` | Specific model. |
+| `base_url` | `string` | `None` | Custom base URL. |
+| `custom_categories` | `dict` | `None` | Additional toxicity categories. |
+| `threshold_score` | `float` | `0.5` | Minimum score to return verdict `"yes"`. |
+
+### Toxicity categories
+
+| Category | Description |
+|---|---|
+| `threat` | Language that threatens harm or danger |
+| `dismissive` | Belittling or dismissive language |
+| `hate` | Hateful or intensely negative language |
+| `mockery` | Mocking or sarcastic tone |
+| `personal_attack` | Attacks on a person's character or abilities |
+
+## All evaluations
+
+Combines hallucination, bias, and toxicity detection in a single call. Returns the highest-risk evaluation result.
+
+```python
+import openlit
+import os
+
+os.environ["OPENAI_API_KEY"] = "<YOUR_API_KEY>"
+
+all_evals_detector = openlit.evals.All(provider="openai")
+
+result = all_evals_detector.measure(
+    prompt="Discuss the achievements of scientists.",
+    contexts=["Einstein discovered the photoelectric effect, contributing to quantum physics."],
+    text="Einstein won the Nobel Prize in 1969 for discovering black holes.",
+)
+```
+
+### All class parameters
+
+| Parameter | Type | Default | Description |
+|---|---|---|---|
+| `provider` | `string` | `"openai"` | LLM provider: `"openai"` or `"anthropic"`. |
+| `api_key` | `string` | `None` | Provider API key. |
+| `model` | `string` | `None` | Specific model. |
+| `base_url` | `string` | `None` | Custom base URL. |
+| `custom_categories` | `dict` | `None` | Additional categories for all evaluations. |
+| `threshold_score` | `float` | `0.5` | Minimum score to return verdict `"yes"`. |
+
+## Output format
+
+All evaluators return a dict with the same structure:
+
+```json
+{
+  "score": 0.9,
+  "evaluation": "hallucination",
+  "classification": "factual_inaccuracy",
+  "explanation": "The Nobel Prize year stated does not match the context.",
+  "verdict": "yes"
+}
+```
+
+| Field | Description |
+|---|---|
+| `score` | Confidence score between 0.0 and 1.0 |
+| `evaluation` | Evaluation type: `hallucination`, `bias_detection`, or `toxicity_detection` |
+| `classification` | Specific category detected, or `"none"` |
+| `explanation` | One-sentence reason for the classification |
+| `verdict` | `"yes"` if score exceeds `threshold_score`, otherwise `"no"` |
+
+## Supported providers
+
+| Provider | Models |
+|---|---|
+| OpenAI | GPT-4o, GPT-4o mini |
+| Anthropic | Claude 3.5 Sonnet, Claude 3.5 Haiku, Claude 3 Opus |
+
+<CardGroup cols={3}>
+  <Card title="Guardrails" href="/sdk/features/guardrails" icon="shield">
+    Real-time input safety checks before LLM calls
+  </Card>
+  <Card title="Tracing" href="/sdk/features/tracing" icon="chart-line">
+    Distributed tracing for LLM calls and agent workflows
+  </Card>
+  <Card title="Destinations" href="/sdk/destinations/overview" icon="link">
+    Send evaluation results to any OTel-compatible backend
+  </Card>
+</CardGroup>

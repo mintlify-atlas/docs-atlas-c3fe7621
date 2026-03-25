@@ -1,0 +1,85 @@
+---
+title: "Exceptions monitoring"
+description: "View, filter, and debug all error traces from your AI applications in one place."
+---
+
+The **Exceptions** page shows every trace that contains an error or exception from your AI applications. Instead of hunting through logs or reconstructing failure context from multiple sources, you get a single filtered view of all problematic traces — with full stack traces and execution context attached.
+
+## What gets captured
+
+OpenLIT automatically surfaces traces that contain spans with an error status or an attached exception event. The following categories of errors are captured without any additional instrumentation:
+
+- **LLM API errors** — authentication failures, rate limit errors, model not found, context length exceeded
+- **Framework errors** — LangChain chain execution failures, LlamaIndex query errors, and other AI framework exceptions
+- **Vector database errors** — connection timeouts, query failures, index errors
+- **Application errors** — any custom exception your code raises inside an instrumented span
+
+Every error trace retains the full span context from the moment the exception occurred, so you can see exactly what the model was asked to do, what parameters were in use, and where in the execution flow the failure happened.
+
+## Filtering errors
+
+Use the time range selector at the top of the Exceptions page to scope the view to a specific period:
+
+- **24H** — last 24 hours
+- **7D** — last 7 days
+- **1M** — last 30 days
+- **3M** — last 90 days
+- **Custom** — any date range you specify
+
+Each row in the error list shows:
+
+| Column | Description |
+|---|---|
+| Trace ID | Unique identifier linking all spans in the failing request |
+| Timestamp | When the exception occurred |
+| Span name | The operation that failed (e.g., `openai.chat`, `langchain.chain`) |
+| Deployment | Environment tag (`production`, `staging`, etc.) |
+| Exception type | The specific exception class or error code |
+
+You can filter the list by exception type to focus on a particular failure category — useful when investigating a spike in rate limit errors or a regression in a specific model endpoint.
+
+## Inspecting exception details
+
+Click any row to open the full trace for that error. The detail view shows:
+
+- **Exception message** — the exact error text returned by the API or raised by your code
+- **Stack trace** — the full call stack at the point of failure
+- **Span attributes** — model, token counts, prompt, and all other attributes captured on the failing span
+- **Execution flow** — the complete waterfall of spans leading up to the error, so you can see the upstream context
+
+## Debugging production issues
+
+The Exceptions page is designed for rapid triage. A typical debugging workflow looks like this:
+
+<Steps>
+  <Step title="Identify the spike">
+    Set the time range to match the incident window. Look for a sudden increase in error volume or a new exception type that wasn't present before.
+  </Step>
+  <Step title="Filter by exception type">
+    If you know the category of failure — for example, rate limit errors from a specific provider — filter by exception type to isolate the affected traces.
+  </Step>
+  <Step title="Inspect a representative trace">
+    Click an error to open the trace detail. Check the exception message and stack trace to confirm the root cause. Review the span attributes to see the exact model, prompt, and parameters involved.
+  </Step>
+  <Step title="Correlate with upstream context">
+    Use the span waterfall to see what happened before the failure. If the error occurred inside a multi-step agent, you can trace back to the triggering user input or tool call.
+  </Step>
+</Steps>
+
+<Tip>
+  Cross-reference error spikes with the metrics dashboard. If you see a sudden jump in `gen_ai.errors` on a metrics chart, use the same time range in the Exceptions page to drill into the specific failing traces.
+</Tip>
+
+---
+
+<CardGroup cols={3}>
+  <Card title="Quickstart: LLM Observability" href="/openlit/quickstart" icon="bolt">
+    Production-ready AI monitoring setup in a single line of code
+  </Card>
+  <Card title="Create a dashboard" href="/openlit/dashboards/overview" icon="grid">
+    Create custom visualizations with flexible widgets, queries, and real-time AI monitoring
+  </Card>
+  <Card title="Integrations" href="/sdk/integrations/overview" icon="circle-nodes">
+    60+ AI integrations with automatic instrumentation and performance tracking
+  </Card>
+</CardGroup>

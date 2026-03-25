@@ -1,0 +1,180 @@
+---
+title: "LLM provider integrations"
+description: "Auto-instrument OpenAI, Anthropic, Cohere, Mistral, Groq, AWS Bedrock, and 20+ more LLM providers with zero code changes"
+---
+
+OpenLIT auto-instruments every supported LLM provider you have installed. Install the OpenLIT SDK, call `openlit.init()` once at startup, and all LLM calls your application makes are automatically traced with token counts, latency, cost, and model metadata.
+
+## Get started
+
+<Steps>
+  <Step title="Install OpenLIT">
+    <Tabs>
+      <Tab title="Python">
+        ```shell
+        pip install openlit
+        ```
+      </Tab>
+      <Tab title="TypeScript">
+        ```shell
+        npm install openlit
+        ```
+      </Tab>
+    </Tabs>
+  </Step>
+
+  <Step title="Install your LLM provider SDK">
+    Install the SDK for the provider you use. OpenLIT detects it automatically.
+
+    <Tabs>
+      <Tab title="Python">
+        ```shell
+        # Example: OpenAI
+        pip install openai
+
+        # Example: Anthropic
+        pip install anthropic
+        ```
+      </Tab>
+      <Tab title="TypeScript">
+        ```shell
+        # Example: OpenAI
+        npm install openai
+        ```
+      </Tab>
+    </Tabs>
+  </Step>
+
+  <Step title="Initialize OpenLIT in your application">
+    Add `openlit.init()` once at the top of your application entry point.
+
+    <Tabs>
+      <Tab title="Python">
+        ```python
+        import openlit
+        import openai
+
+        openlit.init(otlp_endpoint="http://127.0.0.1:4318")
+
+        client = openai.OpenAI()
+
+        response = client.chat.completions.create(
+            model="gpt-4o",
+            messages=[{"role": "user", "content": "What is observability?"}]
+        )
+        print(response.choices[0].message.content)
+        ```
+      </Tab>
+      <Tab title="TypeScript">
+        ```typescript
+        import Openlit from 'openlit';
+        import OpenAI from 'openai';
+
+        Openlit.init({ otlpEndpoint: 'http://127.0.0.1:4318' });
+
+        const client = new OpenAI();
+
+        const response = await client.chat.completions.create({
+            model: 'gpt-4o',
+            messages: [{ role: 'user', content: 'What is observability?' }]
+        });
+        console.log(response.choices[0].message.content);
+        ```
+      </Tab>
+    </Tabs>
+  </Step>
+</Steps>
+
+## Supported LLM providers
+
+| Provider | Python SDK | TypeScript SDK | Instrumentor key |
+|---|---|---|---|
+| OpenAI | ✅ `openai` | ✅ | `openai` |
+| Anthropic | ✅ `anthropic` | ✅ | `anthropic` |
+| Cohere | ✅ `cohere` | — | `cohere` |
+| Mistral | ✅ `mistralai` | — | `mistral` |
+| Groq | ✅ `groq` | — | `groq` |
+| AWS Bedrock | ✅ `boto3` | — | `bedrock` |
+| Vertex AI | ✅ `vertexai` | — | `vertexai` |
+| Google AI Studio | ✅ `google-genai` | — | `google-ai-studio` |
+| Azure OpenAI | ✅ (via `openai`) | ✅ | `azure-ai-inference` |
+| Ollama | ✅ `ollama` | ✅ | `ollama` |
+| vLLM | ✅ `vllm` | — | `vllm` |
+| HuggingFace Transformers | ✅ `transformers` | — | `transformers` |
+| DeepSeek | ✅ (via `openai`) | — | `openai` |
+| AI21 | ✅ `ai21` | — | `ai21` |
+| Reka | ✅ `reka` | — | `reka-api` |
+| LiteLLM | ✅ `litellm` | — | `litellm` |
+| GPT4All | ✅ `gpt4all` | — | `gpt4all` |
+| Together AI | ✅ `together` | ✅ | `together` |
+| NVIDIA NIM | ✅ (via `openai`) | — | `openai` |
+| xAI | ✅ (via `openai`) | — | `openai` |
+| Sarvam | ✅ `sarvamai` | — | `sarvam` |
+| PremAI | ✅ `premai` | — | `premai` |
+| Julep | ✅ `julep` | — | `julep` |
+| MultiOn | ✅ `multion` | — | `multion` |
+| ElevenLabs | ✅ `elevenlabs` | — | `elevenlabs` |
+| AssemblyAI | ✅ `assemblyai` | — | `assemblyai` |
+
+## Span attributes captured
+
+Every LLM call trace includes the following attributes:
+
+| Attribute | Description |
+|---|---|
+| `gen_ai.system` | LLM provider name (e.g., `openai`) |
+| `gen_ai.request.model` | Model name requested (e.g., `gpt-4o`) |
+| `gen_ai.response.model` | Model name returned by the API |
+| `gen_ai.usage.input_tokens` | Number of prompt tokens consumed |
+| `gen_ai.usage.output_tokens` | Number of completion tokens generated |
+| `gen_ai.usage.total_tokens` | Total tokens used |
+| `gen_ai.request.temperature` | Temperature parameter |
+| `gen_ai.request.max_tokens` | Max tokens parameter |
+| `gen_ai.operation.name` | Operation type (e.g., `chat`, `embeddings`) |
+| `gen_ai.request.finish_reasons` | Stop reason returned by the model |
+| `gen_ai.prompt` | Prompt content (when `capture_message_content=True`) |
+| `gen_ai.completion` | Completion content (when `capture_message_content=True`) |
+| `db.cost` | Estimated cost in USD based on token usage |
+
+## Disabling specific providers
+
+Pass a list of instrumentor keys to skip specific providers:
+
+```python
+import openlit
+
+# Instrument everything except Cohere and LiteLLM
+openlit.init(
+    otlp_endpoint="http://127.0.0.1:4318",
+    disabled_instrumentors=["cohere", "litellm"]
+)
+```
+
+```typescript
+import Openlit from 'openlit';
+
+Openlit.init({
+    otlpEndpoint: 'http://127.0.0.1:4318',
+    disabledInstrumentations: ['cohere', 'litellm']
+});
+```
+
+You can also use the environment variable:
+
+```shell
+export OPENLIT_DISABLED_INSTRUMENTORS="cohere,litellm"
+```
+
+---
+
+<CardGroup cols={3}>
+  <Card title="AI framework integrations" href="/sdk/integrations/ai-frameworks" icon="sitemap">
+    Trace agent execution, tool calls, and chains in LangChain, CrewAI, and more
+  </Card>
+  <Card title="Configuration" href="/sdk/configuration" icon="sliders">
+    Full reference for all openlit.init() parameters
+  </Card>
+  <Card title="Destinations" href="/sdk/destinations/overview" icon="link">
+    Send telemetry to Datadog, Grafana, New Relic, and other observability stacks
+  </Card>
+</CardGroup>

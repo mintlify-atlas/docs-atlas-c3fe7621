@@ -1,0 +1,162 @@
+---
+title: "Integrations overview"
+description: "Auto-instrument 60+ LLM providers, AI frameworks, and vector databases with a single openlit.init() call"
+---
+
+OpenLIT uses OpenTelemetry auto-instrumentation to monitor your AI stack. When you call `openlit.init()`, the SDK automatically detects which supported libraries are installed in your environment and instruments them — no manual configuration required per library.
+
+```python
+import openlit
+
+# Instruments every supported library found in your environment
+openlit.init()
+```
+
+```typescript
+import Openlit from 'openlit';
+
+// Instruments every supported library found in your environment
+Openlit.init();
+```
+
+<Note>
+  Auto-instrumentation is non-invasive. OpenLIT patches library internals at startup using the OpenTelemetry instrumentation API. Your application code does not need to change.
+</Note>
+
+## Supported integrations
+
+<CardGroup cols={3}>
+  <Card
+    title="LLM providers"
+    href="/sdk/integrations/llm-providers"
+    icon="microchip-ai"
+  >
+    OpenAI, Anthropic, Cohere, Mistral, Groq, AWS Bedrock, Vertex AI, and 20+ more providers
+  </Card>
+  <Card
+    title="AI frameworks"
+    href="/sdk/integrations/ai-frameworks"
+    icon="sitemap"
+  >
+    LangChain, LlamaIndex, CrewAI, OpenAI Agents, Pydantic AI, AG2, Haystack, and more
+  </Card>
+  <Card
+    title="Vector databases"
+    href="/sdk/integrations/vector-databases"
+    icon="database"
+  >
+    ChromaDB, Pinecone, Qdrant, Milvus, Astra DB, and PostgreSQL
+  </Card>
+</CardGroup>
+
+## LLM providers
+
+| Provider | Python | TypeScript |
+|---|---|---|
+| OpenAI | ✅ | ✅ |
+| Anthropic | ✅ | ✅ |
+| Cohere | ✅ | — |
+| Mistral | ✅ | — |
+| Groq | ✅ | — |
+| AWS Bedrock | ✅ | — |
+| Vertex AI | ✅ | — |
+| Google AI Studio | ✅ | — |
+| Azure OpenAI | ✅ | ✅ |
+| Ollama | ✅ | ✅ |
+| vLLM | ✅ | — |
+| HuggingFace Transformers | ✅ | — |
+| DeepSeek | ✅ | — |
+| AI21 | ✅ | — |
+| Reka | ✅ | — |
+| LiteLLM | ✅ | — |
+| GPT4All | ✅ | — |
+| Together AI | ✅ | ✅ |
+| NVIDIA NIM | ✅ | — |
+| xAI | ✅ | — |
+| Sarvam | ✅ | — |
+| PremAI | ✅ | — |
+| Featherless | ✅ | — |
+| Krutrim | ✅ | — |
+| TitanML | ✅ | — |
+| Julep | ✅ | — |
+| MultiOn | ✅ | — |
+| ElevenLabs | ✅ | — |
+| AssemblyAI | ✅ | — |
+
+## AI frameworks
+
+| Framework | Python | TypeScript |
+|---|---|---|
+| LangChain | ✅ | ✅ |
+| LlamaIndex | ✅ | ✅ |
+| CrewAI | ✅ | — |
+| OpenAI Agents SDK | ✅ | — |
+| Pydantic AI | ✅ | — |
+| AG2 / AutoGen | ✅ | — |
+| Haystack | ✅ | — |
+| Mem0 | ✅ | — |
+| Browser Use | ✅ | — |
+| Letta | ✅ | — |
+| Crawl4AI | ✅ | — |
+| Firecrawl | ✅ | — |
+| Dynamiq | ✅ | — |
+| ControlFlow | ✅ | — |
+| SwarmZero | ✅ | — |
+| DSPy | ✅ | — |
+| Agno (Phidata) | ✅ | — |
+| GuardrailsAI | ✅ | — |
+
+## Vector databases
+
+| Database | Python | TypeScript |
+|---|---|---|
+| ChromaDB | ✅ | ✅ |
+| Pinecone | ✅ | ✅ |
+| Qdrant | ✅ | ✅ |
+| Milvus | ✅ | — |
+| Astra DB | ✅ | — |
+| PostgreSQL (psycopg3) | ✅ | — |
+
+## Disabling specific instrumentors
+
+To skip instrumentation for one or more libraries, pass their names to the `disabled_instrumentors` parameter. Use the instrumentor key names shown in the table below.
+
+```python
+import openlit
+
+openlit.init(
+    disabled_instrumentors=["cohere", "pinecone"]
+)
+```
+
+```typescript
+import Openlit from 'openlit';
+
+Openlit.init({
+    disabledInstrumentations: ["cohere", "pinecone"]
+});
+```
+
+You can also set this via the environment variable:
+
+```shell
+export OPENLIT_DISABLED_INSTRUMENTORS="cohere,pinecone"
+```
+
+<Tip>
+  Use `disabled_instrumentors` when you need fine-grained control — for example, to avoid double-instrumentation if you already use an upstream OpenTelemetry instrumentor for the same library.
+</Tip>
+
+---
+
+<CardGroup cols={3}>
+  <Card title="GPU integrations" href="/sdk/integrations/gpu" icon="microchip">
+    Monitor NVIDIA and AMD GPU utilization, memory, temperature, and power
+  </Card>
+  <Card title="Configuration" href="/sdk/configuration" icon="sliders">
+    Full reference for all openlit.init() parameters
+  </Card>
+  <Card title="Destinations" href="/sdk/destinations/overview" icon="link">
+    Send telemetry to Datadog, Grafana, New Relic, and other observability stacks
+  </Card>
+</CardGroup>

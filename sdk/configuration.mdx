@@ -1,0 +1,214 @@
+---
+title: "SDK configuration"
+description: "All parameters for openlit.init() with their types, defaults, and environment variable equivalents."
+---
+
+Configure the OpenLIT SDK by passing parameters to `openlit.init()`, by setting environment variables before your process starts, or by using CLI arguments with `openlit-instrument`. Environment variables take precedence over CLI arguments, which take precedence over SDK parameters.
+
+<Info>
+  Environment variables take precedence over CLI arguments, which take precedence over SDK parameters passed directly to `openlit.init()`.
+</Info>
+
+## Python
+
+### Manual instrumentation
+
+```python
+import openlit
+
+openlit.init(
+    service_name="my-ai-app",
+    environment="production",
+    otlp_endpoint="http://127.0.0.1:4318",
+)
+```
+
+### Zero-code instrumentation (CLI)
+
+```bash
+export OTEL_SERVICE_NAME=my-ai-app
+export OTEL_DEPLOYMENT_ENVIRONMENT=production
+export OTEL_EXPORTER_OTLP_ENDPOINT=http://127.0.0.1:4318
+openlit-instrument python your_app.py
+```
+
+### Core parameters
+
+<ParamField path="service_name" type="string" default="default">
+  The name of your service as it appears in traces and metrics. Maps to `OTEL_SERVICE_NAME`.
+  
+  Replaces the deprecated `application_name` parameter.
+</ParamField>
+
+<ParamField path="environment" type="string" default="default">
+  The deployment environment (for example, `production`, `staging`, `development`). Maps to `OTEL_DEPLOYMENT_ENVIRONMENT`.
+</ParamField>
+
+<ParamField path="otlp_endpoint" type="string" default="None">
+  The OpenTelemetry OTLP endpoint to export traces and metrics to (for example, `http://127.0.0.1:4318`). Maps to `OTEL_EXPORTER_OTLP_ENDPOINT`.
+
+  When not set, OpenLIT initialises successfully but does not export any telemetry.
+</ParamField>
+
+<ParamField path="otlp_headers" type="dict" default="None">
+  Authentication headers for your OTLP endpoint, for example `{"Authorization": "Bearer <token>"}`. Maps to `OTEL_EXPORTER_OTLP_HEADERS`.
+</ParamField>
+
+<ParamField path="tracer" type="opentelemetry.trace.Tracer" default="None">
+  An existing OpenTelemetry `Tracer` instance. Pass this if you have already configured a tracer in your application and want OpenLIT to use the same provider. No environment variable equivalent.
+</ParamField>
+
+<ParamField path="event_logger" type="opentelemetry.logs.Logger" default="None">
+  An existing OpenTelemetry `EventLoggerProvider` instance for emitting events. No environment variable equivalent.
+</ParamField>
+
+<ParamField path="meter" type="opentelemetry.metrics.Meter" default="None">
+  An existing OpenTelemetry `Meter` instance. No environment variable equivalent.
+</ParamField>
+
+<ParamField path="disable_batch" type="boolean" default="False">
+  Disables the OpenTelemetry batch span processor and sends spans immediately. Useful in development to see traces without delay. Maps to `OPENLIT_DISABLE_BATCH`.
+</ParamField>
+
+### Content and tracing parameters
+
+<ParamField path="capture_message_content" type="boolean" default="True">
+  Captures LLM prompt and response content as span attributes. Disable this for privacy-sensitive workloads or to reduce span size. Maps to `OTEL_INSTRUMENTATION_GENAI_CAPTURE_MESSAGE_CONTENT`.
+</ParamField>
+
+<ParamField path="max_content_length" type="int" default="None">
+  Maximum character length for captured prompt and completion content. Content exceeding the limit is truncated with `...` appended.
+
+  `None` (default), `0`, or `-1` disables truncation entirely. Maps to `OPENLIT_MAX_CONTENT_LENGTH`.
+
+  ```python
+  # Truncate all captured content to 500 characters
+  openlit.init(max_content_length=500)
+  ```
+</ParamField>
+
+<ParamField path="detailed_tracing" type="boolean" default="True">
+  Enables detailed component-level tracing for AI frameworks (for example, individual LangChain chain steps). When `False`, only workflow-level spans are created, reducing storage overhead. Maps to `OPENLIT_DETAILED_TRACING`.
+</ParamField>
+
+<ParamField path="disabled_instrumentors" type="list[str]" default="None">
+  A list of instrumentor names to skip. Use this to disable instrumentation for specific libraries (for example, `["anthropic", "langchain"]`). Maps to `OPENLIT_DISABLED_INSTRUMENTORS` (comma-separated).
+</ParamField>
+
+### Metrics parameters
+
+<ParamField path="disable_metrics" type="boolean" default="False">
+  Disables all OpenTelemetry metrics collection, including cost tracking and performance metrics. Maps to `OPENLIT_DISABLE_METRICS`.
+</ParamField>
+
+<ParamField path="pricing_json" type="string" default="None">
+  A file path or URL pointing to a custom pricing JSON file. Use this for fine-tuned or private models not in the built-in pricing database. Maps to `OPENLIT_PRICING_JSON`.
+
+  ```python
+  openlit.init(pricing_json="/path/to/custom-pricing.json")
+  # or
+  openlit.init(pricing_json="https://example.com/pricing.json")
+  ```
+</ParamField>
+
+### System metrics
+
+<ParamField path="collect_system_metrics" type="boolean" default="False">
+  Enables comprehensive system monitoring including CPU, memory, disk, network, and GPU metrics. Requires `opentelemetry-instrumentation-system-metrics`. GPU monitoring is automatically enabled if a supported GPU is detected. Maps to `OPENLIT_COLLECT_SYSTEM_METRICS`.
+</ParamField>
+
+### Evaluation export
+
+<ParamField path="evals_logs_export" type="boolean" default="True">
+  When `True`, evaluation results are emitted as OTel Log Records. When `False`, they are emitted as OTel Events. Use `True` (the default) for backends like Grafana Loki that handle logs better than events. Maps to `OPENLIT_EVALS_LOGS_EXPORT`.
+</ParamField>
+
+### Database instrumentation parameters
+
+These parameters apply to database instrumentations such as PostgreSQL (psycopg3).
+
+<ParamField path="capture_parameters" type="boolean" default="False">
+  Captures database query parameters (the values bound to `$1`, `$2`, and so on) in spans.
+
+  <Warning>
+    Enabling this may expose sensitive data such as passwords, API keys, or personal information in your traces. Only enable in development environments or when you are certain parameters contain no sensitive data.
+  </Warning>
+
+  Maps to `OPENLIT_CAPTURE_PARAMETERS`.
+</ParamField>
+
+<ParamField path="enable_sqlcommenter" type="boolean" default="False">
+  Injects OpenTelemetry trace context as SQL comments in queries, enabling correlation between application traces and database logs.
+
+  ```sql
+  -- With SQLCommenter enabled
+  SELECT * FROM users WHERE id = $1
+  /*traceparent='00-abc123-789xyz-01',application='my_app'*/;
+  ```
+
+  Maps to `OPENLIT_ENABLE_SQLCOMMENTER`.
+</ParamField>
+
+### Deprecated parameters
+
+| Parameter | Replacement | Notes |
+|---|---|---|
+| `application_name` | `service_name` | Still accepted for backward compatibility |
+| `collect_gpu_stats` | `collect_system_metrics` | Use `collect_system_metrics=True` instead |
+
+## TypeScript
+
+### Manual instrumentation
+
+```typescript
+import Openlit from "openlit";
+
+Openlit.init({
+  applicationName: "my-ai-app",
+  environment: "production",
+  otlpEndpoint: "http://127.0.0.1:4318",
+});
+```
+
+### Configuration parameters
+
+| Parameter | Type | Default | Description |
+|---|---|---|---|
+| `applicationName` | `string` | `"default"` | Service name for tracing. Maps to `OTEL_SERVICE_NAME`. |
+| `environment` | `string` | `"default"` | Deployment environment. Maps to `OTEL_DEPLOYMENT_ENVIRONMENT`. |
+| `otlpEndpoint` | `string` | `undefined` | OTLP endpoint URL. Maps to `OTEL_EXPORTER_OTLP_ENDPOINT`. |
+| `otlpHeaders` | `object` | `undefined` | Authentication headers. Maps to `OTEL_EXPORTER_OTLP_HEADERS`. |
+| `tracer` | `Tracer` | `undefined` | Existing OTel Tracer instance. |
+| `disableBatch` | `boolean` | `true` | Disable batch span processing. |
+| `traceContent` | `boolean` | `true` | Capture LLM prompt and response content. |
+| `disabledInstrumentations` | `string[]` | `undefined` | List of instrumentations to skip. |
+| `instrumentations` | `object` | `undefined` | Manual instrumentation modules for patching. |
+| `pricing_json` | `string` | built-in URL | Custom pricing JSON URL for cost tracking. |
+
+## Resource attributes
+
+Use standard OpenTelemetry environment variables to attach additional metadata to all telemetry:
+
+```bash
+export OTEL_RESOURCE_ATTRIBUTES="service.version=2.1.0,team=ai-platform"
+export OTEL_SERVICE_VERSION=2.1.0
+```
+
+| Environment variable | Description | Example |
+|---|---|---|
+| `OTEL_RESOURCE_ATTRIBUTES` | Key-value pairs for resource attributes | `service.version=1.0.0` |
+| `OTEL_SERVICE_VERSION` | Service version | `1.2.3` |
+| `OTEL_RESOURCE_ATTRIBUTES_POD_NAME` | Kubernetes pod name | `my-app-pod-xyz` |
+| `OTEL_RESOURCE_ATTRIBUTES_NODE_NAME` | Kubernetes node name | `node-123` |
+
+<CardGroup cols={3}>
+  <Card title="Quickstart" href="/sdk/quickstart" icon="bolt">
+    Get your first trace running in minutes
+  </Card>
+  <Card title="Tracing" href="/sdk/features/tracing" icon="chart-line">
+    Custom spans, content capture, and manual tracing options
+  </Card>
+  <Card title="Integrations" href="/sdk/integrations/overview" icon="circle-nodes">
+    60+ supported integrations
+  </Card>
+</CardGroup>

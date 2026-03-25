@@ -1,0 +1,222 @@
+---
+title: "API reference"
+description: "Authenticate and call the OpenLIT REST API to retrieve prompts and secrets programmatically"
+---
+
+The OpenLIT REST API lets you integrate Prompt Hub and Vault directly into any application or script — without installing an SDK. All endpoints accept JSON request bodies and return JSON responses.
+
+## Authentication
+
+Every request must include your OpenLIT API key in the `Authorization` header:
+
+```http
+Authorization: Bearer <api-key>
+```
+
+To create an API key, navigate to **API Keys** in OpenLIT and click **Create API Key**.
+
+## Base URL
+
+Replace the base URL below with the address of your OpenLIT instance:
+
+```
+http://127.0.0.1:3000
+```
+
+If OpenLIT is deployed on a remote host, substitute the appropriate hostname or IP address.
+
+## Endpoints
+
+### POST /api/prompt/get-compiled
+
+Fetch a prompt from Prompt Hub and optionally compile it with runtime variables.
+
+<CodeGroup>
+
+```bash curl
+curl --request POST \
+  --url http://127.0.0.1:3000/api/prompt/get-compiled \
+  --header 'Authorization: Bearer _OPENLIT_API_KEY' \
+  --header 'Content-Type: application/json' \
+  --data '{
+    "name": "prompt_name",
+    "shouldCompile": true,
+    "variables": { "name": "John" }
+  }'
+```
+
+```python Python
+import requests
+
+response = requests.post(
+    "http://127.0.0.1:3000/api/prompt/get-compiled",
+    headers={
+        "Authorization": "Bearer _OPENLIT_API_KEY",
+        "Content-Type": "application/json",
+    },
+    json={
+        "name": "prompt_name",
+        "shouldCompile": True,
+        "variables": {"name": "John"},
+    },
+)
+
+print(response.json())
+```
+
+</CodeGroup>
+
+#### Request parameters
+
+<ParamField path="header.Authorization" type="string" required>
+  `Bearer <api-key>` — your OpenLIT API key.
+</ParamField>
+
+<ParamField path="body.name" type="string">
+  Name of the prompt to retrieve. Use either `name` or `promptId`.
+</ParamField>
+
+<ParamField path="body.promptId" type="string">
+  Unique ID of the prompt. Use either `promptId` or `name`.
+</ParamField>
+
+<ParamField path="body.version" type="string">
+  Specific semantic version to retrieve (e.g. `3.2.1`). Omit to get the latest version.
+</ParamField>
+
+<ParamField path="body.shouldCompile" type="boolean">
+  When `true`, replaces `{{variableName}}` placeholders in the prompt with values from `variables`.
+</ParamField>
+
+<ParamField path="body.variables" type="object">
+  Key-value pairs substituted into the prompt when `shouldCompile` is `true`.
+</ParamField>
+
+<ParamField path="body.metaProperties" type="object">
+  Additional metadata stored in the prompt's access history.
+</ParamField>
+
+#### Response
+
+```json 200
+{
+  "err": null,
+  "res": {
+    "promptId": "88c4cbcd-87f9-4957-a37b-b41066e17471",
+    "name": "prompt_name",
+    "version": "3.3.3",
+    "tags": ["user", "greeting"],
+    "metaProperties": { "model": "gpt4" },
+    "prompt": "Hello {{name}}, how are you today?",
+    "compiledPrompt": "Hello John, how are you today?"
+  }
+}
+```
+
+<ResponseField name="err" type="null | string">
+  `null` on success, or an error message string on failure.
+</ResponseField>
+
+<ResponseField name="res" type="object">
+  <Expandable title="properties" defaultOpen>
+    <ResponseField name="promptId" type="string">
+      Unique identifier for the prompt.
+    </ResponseField>
+    <ResponseField name="name" type="string">
+      The prompt name as stored in Prompt Hub.
+    </ResponseField>
+    <ResponseField name="version" type="string">
+      Semantic version of the returned prompt (e.g. `3.3.3`).
+    </ResponseField>
+    <ResponseField name="tags" type="string[]">
+      Tags associated with the prompt.
+    </ResponseField>
+    <ResponseField name="metaProperties" type="object">
+      Key-value metadata stored alongside the prompt.
+    </ResponseField>
+    <ResponseField name="prompt" type="string">
+      The raw prompt text, including any unresolved `{{variable}}` placeholders.
+    </ResponseField>
+    <ResponseField name="compiledPrompt" type="string">
+      The prompt with all variables substituted. Present only when `shouldCompile` is `true`.
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+---
+
+### POST /api/vault/get-secrets
+
+Retrieve secrets from Vault. Optionally filter by key or tag.
+
+<CodeGroup>
+
+```bash curl
+curl --request POST \
+  --url http://127.0.0.1:3000/api/vault/get-secrets \
+  --header 'Authorization: Bearer _OPENLIT_API_KEY' \
+  --header 'Content-Type: application/json' \
+  --data '{}'
+```
+
+```python Python
+import requests
+
+response = requests.post(
+    "http://127.0.0.1:3000/api/vault/get-secrets",
+    headers={
+        "Authorization": "Bearer _OPENLIT_API_KEY",
+        "Content-Type": "application/json",
+    },
+    json={},
+)
+
+print(response.json())
+```
+
+</CodeGroup>
+
+#### Request parameters
+
+<ParamField path="header.Authorization" type="string" required>
+  `Bearer <api-key>` — your OpenLIT API key.
+</ParamField>
+
+<ParamField path="body.key" type="string">
+  Fetch a single secret by its key (e.g. `OPENAI_API_KEY`). Omit to fetch all secrets.
+</ParamField>
+
+<ParamField path="body.tags" type="string[]">
+  Fetch only secrets that have all of the specified tags assigned.
+</ParamField>
+
+#### Response
+
+```json 200
+{
+  "err": null,
+  "res": {
+    "ANTHROPIC_API_KEY": "ANTHROPIC_API_VALUE",
+    "OPENAI_API_KEY": "OPENAI_API_VALUE"
+  }
+}
+```
+
+<ResponseField name="err" type="null | string">
+  `null` on success, or an error message string on failure.
+</ResponseField>
+
+<ResponseField name="res" type="object">
+  A flat object where each key is the secret's key name and each value is the secret's value.
+</ResponseField>
+
+---
+
+<CardGroup cols={2}>
+  <Card title="Prompt Hub" href="/openlit/prompts/prompt-hub" icon="message">
+    Manage and version prompts in the OpenLIT UI
+  </Card>
+  <Card title="Vault" href="/openlit/secrets/vault" icon="vault">
+    Store and manage LLM API keys and secrets centrally
+  </Card>
+</CardGroup>

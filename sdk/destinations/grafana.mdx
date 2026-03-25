@@ -1,0 +1,144 @@
+---
+title: "Send to Grafana Cloud"
+description: "Configure the OpenLIT SDK to send AI observability data to Grafana Cloud using the OTLP gateway"
+---
+
+Grafana Cloud accepts OpenTelemetry data through a managed OTLP gateway. You authenticate with a Base64-encoded Instance ID and API token passed as an `Authorization` header.
+
+## Get started
+
+<Steps>
+  <Step title="Get your Grafana Cloud OTLP credentials">
+    1. Sign in to the [Grafana Cloud Portal](https://grafana.com/auth/sign-in) and select your Grafana Cloud Stack.
+    1. Click **Configure** in the OpenTelemetry section.
+    1. In the **Password / API Token** section, click **Generate now** to create a new API token:
+       - Give the token a name, for example `openlit`.
+       - Click **Create token**, then **Close**.
+    1. Copy and save the values for `OTEL_EXPORTER_OTLP_ENDPOINT` and `OTEL_EXPORTER_OTLP_HEADERS`.
+
+    <Note>
+      Replace the space after `Basic` in the headers value with `%20`:
+      `OTEL_EXPORTER_OTLP_HEADERS="Authorization=Basic%20[base64 instanceID:token]"`
+    </Note>
+  </Step>
+
+  <Step title="Install the OpenLIT SDK">
+    <Tabs>
+      <Tab title="Python">
+        ```shell
+        pip install openlit
+        ```
+      </Tab>
+      <Tab title="TypeScript">
+        ```shell
+        npm install openlit
+        ```
+      </Tab>
+    </Tabs>
+  </Step>
+
+  <Step title="Configure the SDK to send to Grafana Cloud">
+    <Tabs>
+      <Tab title="Python">
+        **Using function arguments:**
+
+        ```python
+        import openlit
+
+        openlit.init(
+            otlp_endpoint="https://otlp-gateway-<zone>.grafana.net/otlp",
+            otlp_headers="Authorization=Basic%20<base64 instanceID:token>"
+        )
+        ```
+
+        **Using environment variables:**
+
+        ```shell
+        export OTEL_EXPORTER_OTLP_ENDPOINT="https://otlp-gateway-<zone>.grafana.net/otlp"
+        export OTEL_EXPORTER_OTLP_HEADERS="Authorization=Basic%20<base64 instanceID:token>"
+        ```
+
+        ```python
+        import openlit
+
+        openlit.init()
+        ```
+      </Tab>
+      <Tab title="TypeScript">
+        **Using function arguments:**
+
+        ```typescript
+        import Openlit from 'openlit';
+
+        Openlit.init({
+            otlpEndpoint: 'https://otlp-gateway-<zone>.grafana.net/otlp',
+            otlpHeaders: 'Authorization=Basic%20<base64 instanceID:token>'
+        });
+        ```
+
+        **Using environment variables:**
+
+        ```shell
+        export OTEL_EXPORTER_OTLP_ENDPOINT="https://otlp-gateway-<zone>.grafana.net/otlp"
+        export OTEL_EXPORTER_OTLP_HEADERS="Authorization=Basic%20<base64 instanceID:token>"
+        ```
+
+        ```typescript
+        import Openlit from 'openlit';
+
+        Openlit.init();
+        ```
+      </Tab>
+    </Tabs>
+
+    Replace:
+    - `<zone>` with your Grafana Cloud stack zone (e.g., `prod-us-east-0`).
+    - `<base64 instanceID:token>` with the Base64-encoded value of your Instance ID and API token.
+  </Step>
+</Steps>
+
+## Configuration values
+
+| Value | Where to find it |
+|---|---|
+| `OTEL_EXPORTER_OTLP_ENDPOINT` | Grafana Cloud Portal → OpenTelemetry section |
+| `OTEL_EXPORTER_OTLP_HEADERS` | Grafana Cloud Portal → OpenTelemetry section |
+
+<Warning>
+  The `Authorization` header value must URL-encode the space after `Basic` as `%20`. Using a literal space causes authentication failures.
+</Warning>
+
+## Full example
+
+```python
+import openlit
+import openai
+
+openlit.init(
+    otlp_endpoint="https://otlp-gateway-prod-us-east-0.grafana.net/otlp",
+    otlp_headers="Authorization=Basic%20dXNlcjE6cGFzc3dvcmQ=",
+    service_name="my-ai-service",
+    environment="production"
+)
+
+client = openai.OpenAI()
+response = client.chat.completions.create(
+    model="gpt-4o",
+    messages=[{"role": "user", "content": "Hello!"}]
+)
+print(response.choices[0].message.content)
+```
+
+---
+
+<CardGroup cols={3}>
+  <Card title="Send to OpenLIT" href="/sdk/destinations/openlit" icon="server">
+    Send to a self-hosted OpenLIT platform instance
+  </Card>
+  <Card title="Send to Datadog" href="/sdk/destinations/datadog" icon="dog">
+    Route traces through the Datadog Agent
+  </Card>
+  <Card title="Integrations" href="/sdk/integrations/overview" icon="circle-nodes">
+    60+ LLM providers, AI frameworks, and vector databases
+  </Card>
+</CardGroup>

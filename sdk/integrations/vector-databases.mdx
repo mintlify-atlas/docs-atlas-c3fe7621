@@ -1,0 +1,137 @@
+---
+title: "Vector database integrations"
+description: "Auto-instrument ChromaDB, Pinecone, Qdrant, Milvus, Astra DB, and PostgreSQL vector operations with OpenTelemetry"
+---
+
+OpenLIT instruments vector database clients to trace every query, upsert, delete, and index operation your application performs. You get full visibility into retrieval latency, collection names, operation types, and result counts — without changing your database code.
+
+## Get started
+
+<Steps>
+  <Step title="Install OpenLIT">
+    ```shell
+    pip install openlit
+    ```
+  </Step>
+
+  <Step title="Install your vector database client">
+    ```shell
+    # ChromaDB
+    pip install chromadb
+
+    # Pinecone
+    pip install pinecone
+
+    # Qdrant
+    pip install qdrant-client
+
+    # Milvus
+    pip install pymilvus
+
+    # Astra DB
+    pip install astrapy
+    ```
+  </Step>
+
+  <Step title="Initialize OpenLIT">
+    Call `openlit.init()` before any vector database operations.
+
+    <CodeGroup>
+      ```python ChromaDB example
+      import openlit
+      import chromadb
+
+      openlit.init(otlp_endpoint="http://127.0.0.1:4318")
+
+      client = chromadb.Client()
+      collection = client.create_collection("documents")
+
+      collection.add(
+          documents=["OpenLIT makes AI observability easy"],
+          ids=["doc1"]
+      )
+
+      results = collection.query(
+          query_texts=["AI observability"],
+          n_results=1
+      )
+      print(results)
+      ```
+
+      ```python Pinecone example
+      import openlit
+      from pinecone import Pinecone
+
+      openlit.init(otlp_endpoint="http://127.0.0.1:4318")
+
+      pc = Pinecone(api_key="YOUR_API_KEY")
+      index = pc.Index("my-index")
+
+      index.upsert(
+          vectors=[("vec1", [0.1, 0.2, 0.3])]
+      )
+
+      results = index.query(
+          vector=[0.1, 0.2, 0.3],
+          top_k=5
+      )
+      print(results)
+      ```
+    </CodeGroup>
+  </Step>
+</Steps>
+
+## Supported vector databases
+
+| Database | Python | TypeScript | Instrumentor key |
+|---|---|---|---|
+| ChromaDB | ✅ `chromadb` | ✅ | `chroma` |
+| Pinecone | ✅ `pinecone` | ✅ | `pinecone` |
+| Qdrant | ✅ `qdrant-client` | ✅ | `qdrant` |
+| Milvus | ✅ `pymilvus` | — | `milvus` |
+| Astra DB | ✅ `astrapy` | — | `astra` |
+| PostgreSQL (psycopg3) | ✅ `psycopg` | — | `psycopg` |
+
+## Span attributes captured
+
+Vector database spans include the following attributes:
+
+| Attribute | Description |
+|---|---|
+| `db.system` | Database system name (e.g., `chromadb`, `pinecone`) |
+| `db.operation` | Operation type (e.g., `query`, `upsert`, `delete`) |
+| `db.collection.name` | Collection or index name |
+| `db.vector.query.top_k` | Number of results requested |
+| `db.vector.dimension` | Vector dimension |
+| `server.address` | Database host |
+| `server.port` | Database port |
+
+<Note>
+  PostgreSQL (`psycopg3`) instrumentation traces SQL queries executed against pgvector-enabled tables using the same span attributes as other vector operations, plus standard database span attributes like `db.statement`.
+</Note>
+
+## Disabling specific databases
+
+```python
+import openlit
+
+# Instrument everything except Pinecone
+openlit.init(
+    otlp_endpoint="http://127.0.0.1:4318",
+    disabled_instrumentors=["pinecone"]
+)
+```
+
+---
+
+<CardGroup cols={3}>
+  <Card title="LLM provider integrations" href="/sdk/integrations/llm-providers" icon="microchip-ai">
+    Trace LLM calls with token counts, cost, and latency
+  </Card>
+  <Card title="AI framework integrations" href="/sdk/integrations/ai-frameworks" icon="sitemap">
+    Trace agent execution, tool calls, and chains
+  </Card>
+  <Card title="Destinations" href="/sdk/destinations/overview" icon="link">
+    Send telemetry to Datadog, Grafana, New Relic, and other observability stacks
+  </Card>
+</CardGroup>

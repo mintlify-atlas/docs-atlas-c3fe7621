@@ -1,0 +1,286 @@
+---
+title: "Operator configuration"
+description: "Configure the OpenLIT Operator deployment with Helm values, and define AutoInstrumentation custom resources to control how workloads are instrumented."
+---
+
+Operator configuration is split into two areas:
+
+1. **Helm values** — control the operator deployment itself (replicas, resources, log level, images)
+2. **AutoInstrumentation CRD** — control which pods are instrumented and how
+
+## Operator Helm values
+
+Pass values at install or upgrade time with `--set` flags or a `values.yaml` file.
+
+### Deployment
+
+<ParamField path="deployment.replicas" type="integer" default="1">
+  Number of operator replicas. For high availability, set to `3` and configure `podAntiAffinity`.
+</ParamField>
+
+<ParamField path="deployment.strategy.type" type="string" default="RollingUpdate">
+  Kubernetes deployment strategy. Use `Recreate` if you need to avoid running two operator versions simultaneously.
+</ParamField>
+
+<ParamField path="deployment.priorityClassName" type="string" default="">
+  Priority class for the operator pod. Set to `system-cluster-critical` for production environments.
+</ParamField>
+
+### Resource limits
+
+<ParamField path="resources.requests.cpu" type="string" default="100m">
+  CPU request for the operator pod.
+</ParamField>
+
+<ParamField path="resources.requests.memory" type="string" default="128Mi">
+  Memory request for the operator pod.
+</ParamField>
+
+<ParamField path="resources.limits.cpu" type="string" default="500m">
+  CPU limit for the operator pod.
+</ParamField>
+
+<ParamField path="resources.limits.memory" type="string" default="512Mi">
+  Memory limit for the operator pod.
+</ParamField>
+
+**Example — high availability deployment:**
+
+```yaml
+deployment:
+  replicas: 3
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 1
+      maxSurge: 1
+  priorityClassName: system-cluster-critical
+  affinity:
+    podAntiAffinity:
+      preferredDuringSchedulingIgnoredDuringExecution:
+      - weight: 100
+        podAffinityTerm:
+          labelSelector:
+            matchLabels:
+              app.kubernetes.io/name: openlit-operator
+          topologyKey: kubernetes.io/hostname
+
+resources:
+  requests:
+    cpu: 200m
+    memory: 256Mi
+  limits:
+    cpu: 500m
+    memory: 512Mi
+```
+
+### Observability
+
+<ParamField path="observability.logLevel" type="string" default="info">
+  Operator log level. Accepts `debug`, `info`, `warn`, or `error`.
+</ParamField>
+
+<ParamField path="observability.selfMonitoringEnabled" type="boolean" default="false">
+  Emit the operator's own telemetry via OpenTelemetry. Requires `observability.otel.endpoint`.
+</ParamField>
+
+<ParamField path="observability.otel.endpoint" type="string" default="">
+  OTLP endpoint to send operator telemetry to, for example `http://openlit:4318`.
+</ParamField>
+
+**Example:**
+
+```yaml
+observability:
+  logLevel: info
+  selfMonitoringEnabled: true
+  otel:
+    endpoint: "http://openlit:4318"
+    headers: "Authorization=Bearer my-secret-token"
+```
+
+### Provider images
+
+The operator uses pre-built init container images for each instrumentation provider. By default these inherit the operator's own image tag.
+
+<ParamField path="providerImages.openlit.repository" type="string" default="ghcr.io/openlit/openlit-ai-instrumentation">
+  Image repository for the OpenLIT instrumentation provider.
+</ParamField>
+
+<ParamField path="providerImages.openllmetry.repository" type="string" default="ghcr.io/openlit/openllmetry-ai-instrumentation">
+  Image repository for the OpenLLMetry instrumentation provider.
+</ParamField>
+
+<ParamField path="providerImages.openinference.repository" type="string" default="ghcr.io/openlit/openinference-ai-instrumentation">
+  Image repository for the OpenInference instrumentation provider.
+</ParamField>
+
+**Example — using a private registry:**
+
+```yaml
+providerImages:
+  openlit:
+    repository: my-registry.example.com/openlit-ai-instrumentation
+    tag: "v1.0.0"
+  openllmetry:
+    repository: my-registry.example.com/openllmetry-ai-instrumentation
+  openinference:
+    repository: my-registry.example.com/openinference-ai-instrumentation
+```
+
+### Instrumentation defaults
+
+<ParamField path="instrumentation.defaultProvider" type="string" default="openlit">
+  Default instrumentation provider used when none is specified in the `AutoInstrumentation` CR. Accepts `openlit`, `openinference`, `openllmetry`, or `custom`.
+</ParamField>
+
+<ParamField path="instrumentation.defaultVersion" type="string" default="latest">
+  Default provider image tag.
+</ParamField>
+
+<ParamField path="instrumentation.defaultImagePullPolicy" type="string" default="IfNotPresent">
+  Image pull policy for init containers.
+</ParamField>
+
+---
+
+## AutoInstrumentation CRD
+
+The `AutoInstrumentation` custom resource defines which pods to instrument, how to instrument them, and where to send telemetry.
+
+### Full spec reference
+
+```yaml
+apiVersion: openlit.io/v1alpha1
+kind: AutoInstrumentation
+metadata:
+  name: my-instrumentation
+  namespace: default
+spec:
+  # Pod selection — required
+  selector:
+    matchLabels:
+      openlit.io/instrument: "true"
+    matchExpressions:
+    - key: "environment"
+      operator: In
+      values: ["production", "staging"]
+
+  # Pods to skip even when they match the selector
+  ignore:
+    matchLabels:
+      openlit.io/skip: "true"
+
+  # Python instrumentation settings
+  python:
+    instrumentation:
+      enabled: true
+      provider: "openlit"        # openlit | openinference | openllmetry | custom
+      version: "latest"
+      imagePullPolicy: "IfNotPresent"
+      customPackages: "langchain>=0.1.0,chromadb>=0.4.0"
+      env:
+      - name: OPENLIT_ENVIRONMENT
+        value: "production"
+      - name: OPENLIT_API_KEY
+        valueFrom:
+          secretKeyRef:
+            name: openlit-secret
+            key: api-key
+
+  # OTLP endpoint — required
+  otlp:
+    endpoint: "http://openlit.openlit.svc.cluster.local:4318"
+    headers: "authorization=Bearer token123"
+    timeout: 30
+
+  # Resource attributes added to all telemetry
+  resource:
+    environment: "production"
+    serviceName: "ai-chat-service"
+    serviceNamespace: "ai-platform"
+    serviceVersion: "v2.1.0"
+```
+
+### Pod selection
+
+<ParamField path="spec.selector" type="LabelSelector" required>
+  Pods matching this selector in the same namespace will be instrumented. Supports `matchLabels` (exact match) and `matchExpressions` (operators: `In`, `NotIn`, `Exists`, `DoesNotExist`).
+</ParamField>
+
+<ParamField path="spec.ignore" type="LabelSelector">
+  Pods matching this selector are skipped, even if they match `spec.selector`. Use to exclude system components or debug pods.
+</ParamField>
+
+<Note>
+  `AutoInstrumentation` resources only affect pods **in the same namespace**. To instrument pods across namespaces, create a separate `AutoInstrumentation` resource in each namespace.
+</Note>
+
+### Python instrumentation
+
+<ParamField path="spec.python.instrumentation.enabled" type="boolean" default="true">
+  Enable or disable Python instrumentation.
+</ParamField>
+
+<ParamField path="spec.python.instrumentation.provider" type="string" default="openlit">
+  Instrumentation provider. Accepted values:
+
+  | Value | Description | Init image |
+  |-------|-------------|------------|
+  | `openlit` | Full AI observability with cost tracking | `ghcr.io/openlit/openlit-ai-instrumentation` |
+  | `openinference` | OpenInference conventions, OTel-standard | `ghcr.io/openlit/openinference-ai-instrumentation` |
+  | `openllmetry` | LLM-focused OpenTelemetry extensions | `ghcr.io/openlit/openllmetry-ai-instrumentation` |
+  | `custom` | Your own init container image | Set `customInitImage` |
+</ParamField>
+
+<ParamField path="spec.python.instrumentation.version" type="string" default="latest">
+  Provider image tag to use.
+</ParamField>
+
+<ParamField path="spec.python.instrumentation.customPackages" type="string" default="">
+  Comma-separated list of additional pip packages to install in the init container, e.g. `langchain>=0.1.0,chromadb>=0.4.0`.
+</ParamField>
+
+<ParamField path="spec.python.instrumentation.customInitImage" type="string" default="">
+  Full image reference for a custom init container. Required when `provider` is `custom`.
+</ParamField>
+
+### OTLP configuration
+
+<ParamField path="spec.otlp.endpoint" type="string" required>
+  OTLP HTTP endpoint. Must be a valid HTTP or HTTPS URL.
+
+  | Format | Example | Use case |
+  |--------|---------|----------|
+  | In-cluster service | `http://openlit:4318` | Same namespace |
+  | Fully qualified DNS | `http://openlit.openlit.svc.cluster.local:4318` | Cross-namespace |
+  | External HTTPS | `https://traces.example.com:4318` | Cloud / external |
+</ParamField>
+
+<ParamField path="spec.otlp.headers" type="string" default="">
+  HTTP headers as comma-separated `key=value` pairs, e.g. `authorization=Bearer token123,x-api-key=secret`. Used for authentication with external backends.
+</ParamField>
+
+<ParamField path="spec.otlp.timeout" type="integer" default="30">
+  Request timeout in seconds. Accepted range: 1–300.
+</ParamField>
+
+### Resource attributes
+
+Resource attributes are attached to every span and metric as OpenTelemetry resource attributes. The operator also automatically adds `k8s.pod.name`, `k8s.namespace.name`, `k8s.deployment.name`, `k8s.node.name`, and related Kubernetes attributes.
+
+<ParamField path="spec.resource.environment" type="string" default="">
+  Maps to `deployment.environment`. Example: `production`.
+</ParamField>
+
+<ParamField path="spec.resource.serviceName" type="string" default="">
+  Maps to `service.name`. Overrides the auto-detected service name.
+</ParamField>
+
+<ParamField path="spec.resource.serviceNamespace" type="string" default="">
+  Maps to `service.namespace`.
+</ParamField>
+
+<ParamField path="spec.resource.serviceVersion" type="string" default="">
+  Maps to `service.version`. Example: `v2.1.0`.
+</ParamField>

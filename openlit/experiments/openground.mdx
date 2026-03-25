@@ -1,0 +1,93 @@
+---
+title: "OpenGround"
+description: "Compare multiple LLMs side-by-side on cost, response time, and output quality using OpenLIT's built-in playground"
+---
+
+OpenGround is OpenLIT's LLM playground for side-by-side comparison. You configure two or more LLM providers, enter a prompt, and run them simultaneously. OpenGround displays each response alongside its cost, duration, and token counts so you can make data-driven decisions about which model to use.
+
+## Features
+
+- **Side-by-side comparison** — run multiple LLMs against the same prompt simultaneously and view their responses in parallel
+- **Performance metrics** — compare response time and token usage (prompt tokens, completion tokens) for each model
+- **Cost analysis** — see the estimated cost of each request to help you balance budget and performance
+- **Response quality** — read and compare the full text of each model's response for the same input
+- **Experiment history** — all experiments are saved automatically so you can revisit and share previous comparisons
+
+## Access OpenGround
+
+In the OpenLIT UI, click **OpenGround** in the left navigation sidebar. The landing page shows all previously created experiments. Click any experiment to open its results, or click **Create new** to start a fresh comparison.
+
+## Run an experiment
+
+<Steps>
+  <Step title="List existing experiments">
+    When you open OpenGround, you see an overview of all previously created experiments. Each row shows the experiment name, the models compared, and when it was last run.
+
+    Browse existing experiments to find prior comparisons before creating a new one — you may have already run the comparison you need.
+  </Step>
+
+  <Step title="Create a new experiment">
+    Click **Create new** to open the experiment editor.
+
+    Configure your first LLM:
+    1. Choose a **provider** (e.g., OpenAI, Anthropic, Mistral)
+    2. Select a **model** from that provider
+    3. Set model **parameters** such as temperature and max tokens
+    4. Enter the provider **API key** to authorize requests
+
+    Then configure your second LLM by repeating the same steps for a different provider or model.
+
+    <Tip>
+      You can store LLM API keys in [OpenLIT Vault](/openlit/secrets/vault) and retrieve them centrally instead of entering them each time you run an experiment.
+    </Tip>
+  </Step>
+
+  <Step title="Enter your prompt and compare">
+    Once both models are configured, type your prompt into the prompt editor and click **Compare Response**.
+
+    OpenGround sends the prompt to both models in parallel and displays the results side-by-side as they arrive.
+  </Step>
+
+  <Step title="Review the results">
+    For each model, OpenGround shows:
+
+    | Metric | Description |
+    |---|---|
+    | **Response** | The full text output from the model |
+    | **Duration** | Total response time in milliseconds |
+    | **Cost** | Estimated USD cost based on token pricing |
+    | **Prompt tokens** | Number of tokens consumed by the input |
+    | **Response tokens** | Number of tokens in the model's output |
+
+    Use these metrics together to evaluate the trade-off between response quality, latency, and cost for your specific use case.
+  </Step>
+</Steps>
+
+## Comparison metrics
+
+OpenGround surfaces three categories of metrics to help you choose between models:
+
+**Cost** — estimated cost per request based on each provider's per-token pricing. Use this to identify which model fits your budget, especially when running high-volume workloads.
+
+**Duration** — end-to-end response time from request to final token. Use this to evaluate latency-sensitive applications such as chatbots or real-time assistants.
+
+**Response tokens** — the number of output tokens generated. Longer responses consume more tokens and cost more. Compare response length alongside response quality to find models that are concise without sacrificing accuracy.
+
+<Note>
+  Cost estimates in OpenGround are calculated from publicly listed pricing at the time the experiment runs. Actual costs may differ based on your provider agreement, caching, or pricing changes.
+</Note>
+
+## Experiment history
+
+Every experiment you run is saved automatically. You can return to **OpenGround** at any time to review past results, share them with teammates, or re-run the same prompt against updated model versions.
+
+---
+
+<CardGroup cols={2}>
+  <Card title="Evaluations" href="/openlit/evaluations/overview" icon="check-circle">
+    Score LLM outputs for hallucination, bias, and toxicity automatically
+  </Card>
+  <Card title="Manage LLM secrets" href="/openlit/secrets/vault" icon="vault">
+    Centrally store LLM API keys for use across experiments without re-entering them
+  </Card>
+</CardGroup>

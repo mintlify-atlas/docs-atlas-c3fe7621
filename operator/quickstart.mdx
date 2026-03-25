@@ -1,0 +1,147 @@
+---
+title: "Operator quickstart"
+description: "Deploy the OpenLIT Operator and instrument a sample AI Agent in 5 minutes, with zero code changes."
+---
+
+In this tutorial you'll deploy an example AI Agent in Kubernetes and automatically capture complete observability — distributed traces, LLM costs, token usage, and agent performance metrics — using the OpenLIT Operator.
+
+## Prerequisites
+
+- A Kubernetes cluster with cluster-admin access
+- [Helm](https://helm.sh/docs/intro/install/) installed
+- `kubectl` configured for your cluster
+
+<Note>
+  Don't have a cluster? You can create one locally with [k3d](https://k3d.io/stable/#installation) (`k3d cluster create openlit-demo`) or [minikube](https://minikube.sigs.k8s.io/docs/start/) (`minikube start --cpus=2 --memory=4096mb --driver=docker`).
+</Note>
+
+<Steps titleSize="h2">
+
+  <Step title="Install the OpenLIT Platform">
+    Install the OpenLIT observability platform to collect and visualize traces and metrics.
+
+    **Add the Helm repository:**
+
+    ```bash
+    helm repo add openlit https://openlit.github.io/helm/
+    helm repo update
+    ```
+
+    **Install the platform:**
+
+    ```bash
+    helm install openlit openlit/openlit \
+      --namespace openlit \
+      --create-namespace
+    ```
+
+    Wait for the platform pods to reach `Running` status:
+
+    ```bash
+    kubectl get pods -n openlit
+    ```
+  </Step>
+
+  <Step title="Install the OpenLIT Operator">
+    Install the operator to enable zero-code instrumentation:
+
+    ```bash
+    helm install openlit-operator openlit/openlit-operator
+    ```
+
+    Verify the operator is running:
+
+    ```bash
+    kubectl get pods -n openlit -l app.kubernetes.io/name=openlit-operator
+    ```
+
+    Expected output:
+
+    ```
+    NAME                                READY   STATUS    RESTARTS   AGE
+    openlit-operator-7b9c8d5f7b-xyz12   1/1     Running   0          30s
+    ```
+  </Step>
+
+  <Step title="Create an AutoInstrumentation resource">
+    Create an `AutoInstrumentation` custom resource that defines which pods to instrument and where to send telemetry:
+
+    ```bash
+    kubectl apply -f - <<EOF
+    apiVersion: openlit.io/v1alpha1
+    kind: AutoInstrumentation
+    metadata:
+      name: quickstart-instrumentation
+      namespace: default
+    spec:
+      selector:
+        matchLabels:
+          instrumentation: openlit
+      python:
+        instrumentation:
+          enabled: true
+      otlp:
+        endpoint: "http://openlit.openlit.svc.cluster.local:4318"
+    EOF
+    ```
+
+    This tells the operator to inject instrumentation into any pod in the `default` namespace that has the label `instrumentation: openlit`.
+
+    <Warning>
+      **Already have AI applications running?** Instrumentation is injected at pod startup. Restart existing pods to enable it:
+
+      ```bash
+      kubectl rollout restart deployment <your-deployment-name>
+      ```
+    </Warning>
+  </Step>
+
+  <Step title="Deploy the example AI Agent">
+    Deploy a sample AI Agent built with CrewAI. This deployment already has the `instrumentation: openlit` label, so it will be automatically instrumented:
+
+    ```bash
+    kubectl apply -f https://raw.githubusercontent.com/openlit/openlit/main/operator/examples/test-application-deployment.yaml
+    ```
+
+    Check that the pod starts with the instrumentation init container:
+
+    ```bash
+    kubectl get pods -l app=openlit-test-app
+    kubectl describe pod -l app=openlit-test-app | grep -A5 "Init Containers"
+    ```
+  </Step>
+
+  <Step title="View traces and metrics in OpenLIT">
+    Port-forward to the OpenLIT dashboard:
+
+    ```bash
+    kubectl port-forward -n openlit svc/openlit 3000:3000
+    ```
+
+    Open `http://localhost:3000` in your browser and navigate to the **Traces** section. You'll see:
+
+    - **Service overview** — your `openlit-test-app` service with health metrics
+    - **Trace timeline** — individual traces for HTTP requests and LLM API calls
+    - **LLM operations** — detailed spans showing token usage per call
+    - **Cost tracking** — estimated costs based on token usage
+    - **Performance metrics** — response times, error rates, and throughput
+  </Step>
+
+</Steps>
+
+## Next steps
+
+<CardGroup cols={2}>
+  <Card title="Installation" href="/operator/installation" icon="circle-down">
+    Full installation guide with prerequisites, upgrade paths, and troubleshooting
+  </Card>
+  <Card title="Configuration" href="/operator/configuration" icon="sliders">
+    Configure the operator and AutoInstrumentation resources in detail
+  </Card>
+  <Card title="Instrumentations" href="/operator/instrumentations" icon="circle-nodes">
+    Annotate your own deployments and choose an instrumentation provider
+  </Card>
+  <Card title="Destinations" href="/operator/destinations" icon="link">
+    Send telemetry to your existing observability stack
+  </Card>
+</CardGroup>

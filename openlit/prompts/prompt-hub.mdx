@@ -1,0 +1,298 @@
+---
+title: "Prompt Hub"
+description: "Centrally manage, version, and deploy prompts — then retrieve them at runtime using the SDK or REST API"
+---
+
+Prompt Hub is OpenLIT's central store for managing prompts across your AI applications. Instead of hardcoding prompts in application code, you create and version them in one place and fetch them at runtime. This lets you update prompts without redeploying your application, track every change with semantic versioning, and use dynamic variables to personalise responses.
+
+## Key features
+
+- **Prompt management** — create, edit, and organise prompts in a central UI
+- **Semantic versioning** — every change is tagged with a major, minor, or patch version so you can roll back to any previous state
+- **Dynamic variables** — use `{{variableName}}` placeholders that are substituted at runtime with values you provide
+- **Version history** — view download stats and a full audit trail of changes directly in the UI
+
+## Get started
+
+<Steps>
+  <Step title="Browse existing prompts">
+    Open OpenLIT and click **Prompt Hub** in the left navigation. The list view shows all prompts with their current version and download statistics.
+  </Step>
+
+  <Step title="Create a prompt">
+    1. Click **Create new** in the top-right corner.
+    2. Enter a **name** for the prompt — this is the identifier you use to retrieve it later.
+    3. Write the prompt body. Use `{{variableName}}` syntax for any values that should be injected at runtime. For example:
+       ```
+       Hello {{name}}, how are you today?
+       ```
+    4. Add **Meta Properties** (optional key-value pairs such as `model: gpt4`) to store extra context alongside the prompt.
+    5. Choose a version increment — **major**, **minor**, or **patch** — to describe the scope of the change.
+    6. Click **Save** to publish the prompt.
+  </Step>
+
+  <Step title="Review prompt details">
+    After saving, open the prompt to see its full version history, meta properties, and download statistics. You can edit and re-publish at any time; each save creates a new versioned entry.
+  </Step>
+
+  <Step title="Retrieve the prompt in your application">
+    <Steps>
+      <Step title="Create an API key">
+        Your application needs an API key to authenticate requests to OpenLIT.
+
+        1. In OpenLIT, navigate to **API Keys**.
+        2. Click **Create API Key**.
+        3. Enter a name, then click **Create**.
+        4. Copy the key and store it securely — you will not be able to view it again.
+
+        <Tip>
+          You can also set the API key via the `OPENLIT_API_KEY` environment variable so you do not have to pass it explicitly in every call.
+        </Tip>
+      </Step>
+
+      <Step title="Fetch and compile the prompt">
+        <Tabs>
+          <Tab title="Python">
+            Install the OpenLIT SDK if you have not already:
+
+            ```bash
+            pip install openlit
+            ```
+
+            Then fetch and compile the prompt:
+
+            ```python
+            import openlit
+
+            response = openlit.get_prompt(
+                url="http://127.0.0.1:3000",
+                api_key="_OPENLIT_API_KEY",
+                name="prompt_name",
+                should_compile=True,
+                variables={
+                    "name": "John",
+                },
+            )
+
+            print(response)
+            ```
+
+            ```shell Output
+            {
+              err: null,
+              res: {
+                promptId: '88c4cbcd-87f9-4957-a37b-b41066e17471',
+                name: 'prompt_name',
+                version: '3.3.3',
+                tags: [ 'user', 'greeting' ],
+                metaProperties: { model: 'gpt4' },
+                prompt: 'Hello {{name}}, how are you today?',
+                compiledPrompt: 'Hello John, how are you today?'
+              }
+            }
+            ```
+
+            #### Python SDK parameters
+
+            <ParamField path="url" type="string">
+              Base URL of your OpenLIT instance. Defaults to the `OPENLIT_URL` environment variable.
+            </ParamField>
+
+            <ParamField path="api_key" type="string">
+              OpenLIT API key for authentication. Defaults to the `OPENLIT_API_KEY` environment variable.
+            </ParamField>
+
+            <ParamField path="name" type="string">
+              Name of the prompt to fetch. Use either `name` or `prompt_id`.
+            </ParamField>
+
+            <ParamField path="prompt_id" type="string">
+              Unique ID of the prompt. Use either `prompt_id` or `name`.
+            </ParamField>
+
+            <ParamField path="version" type="string">
+              Specific version to retrieve (e.g. `3.2.1`). Omit to get the latest.
+            </ParamField>
+
+            <ParamField path="should_compile" type="boolean">
+              When `True`, replaces `{{variableName}}` placeholders in the prompt with values from `variables`.
+            </ParamField>
+
+            <ParamField path="variables" type="object">
+              Key-value pairs used for prompt compilation. Required when `should_compile` is `True`.
+            </ParamField>
+
+            <ParamField path="meta_properties" type="object">
+              Additional metadata stored in the prompt's access history.
+            </ParamField>
+          </Tab>
+
+          <Tab title="TypeScript">
+            Install the OpenLIT SDK:
+
+            ```bash
+            npm install openlit
+            ```
+
+            Then fetch and compile the prompt:
+
+            ```typescript
+            import Openlit from 'openlit';
+
+            const response = await Openlit.getPrompts({
+                name: "prompt_name",
+                shouldCompile: true,
+                variables: {
+                    name: "John",
+                },
+            });
+
+            console.log(response);
+            ```
+
+            ```shell Output
+            {
+              err: null,
+              res: {
+                promptId: '88c4cbcd-87f9-4957-a37b-b41066e17471',
+                name: 'prompt_name',
+                version: '3.3.3',
+                tags: [ 'user', 'greeting' ],
+                metaProperties: { model: 'gpt4' },
+                prompt: 'Hello {{name}}, how are you today?',
+                compiledPrompt: 'Hello John, how are you today?'
+              }
+            }
+            ```
+
+            #### TypeScript SDK parameters
+
+            <ParamField path="url" type="string">
+              Base URL of your OpenLIT instance. Defaults to the `OPENLIT_URL` environment variable or `http://127.0.0.1:3000`.
+            </ParamField>
+
+            <ParamField path="apiKey" type="string">
+              OpenLIT API key for authentication. Defaults to the `OPENLIT_API_KEY` environment variable.
+            </ParamField>
+
+            <ParamField path="name" type="string">
+              Name of the prompt to fetch. Use either `name` or `promptId`.
+            </ParamField>
+
+            <ParamField path="promptId" type="string">
+              Unique ID of the prompt. Use either `promptId` or `name`.
+            </ParamField>
+
+            <ParamField path="version" type="string">
+              Specific version to retrieve. Omit to get the latest.
+            </ParamField>
+
+            <ParamField path="shouldCompile" type="boolean">
+              When `true`, replaces `{{variableName}}` placeholders with values from `variables`.
+            </ParamField>
+
+            <ParamField path="variables" type="object">
+              Key-value pairs used for prompt compilation.
+            </ParamField>
+
+            <ParamField path="metaProperties" type="object">
+              Additional metadata stored in the prompt's access history.
+            </ParamField>
+          </Tab>
+
+          <Tab title="REST API">
+            You can also fetch a compiled prompt directly over HTTP.
+
+            ```bash
+            curl --request POST \
+              --url http://127.0.0.1:3000/api/prompt/get-compiled \
+              --header 'Authorization: Bearer _OPENLIT_API_KEY' \
+              --header 'Content-Type: application/json' \
+              --data '{
+                "name": "prompt_name",
+                "shouldCompile": true,
+                "variables": { "name": "John" }
+              }'
+            ```
+
+            #### Request parameters
+
+            <ParamField path="header.Authorization" type="string" required>
+              `Bearer <api-key>` — your OpenLIT API key.
+            </ParamField>
+
+            <ParamField path="body.name" type="string">
+              Name of the prompt to retrieve. Use either `name` or `promptId`.
+            </ParamField>
+
+            <ParamField path="body.promptId" type="string">
+              Unique ID of the prompt. Use either `promptId` or `name`.
+            </ParamField>
+
+            <ParamField path="body.version" type="string">
+              Specific version to retrieve. Omit to get the latest version.
+            </ParamField>
+
+            <ParamField path="body.shouldCompile" type="boolean">
+              When `true`, replaces `{{variableName}}` placeholders with the provided `variables`.
+            </ParamField>
+
+            <ParamField path="body.variables" type="object">
+              Key-value pairs substituted into the prompt when `shouldCompile` is `true`.
+            </ParamField>
+
+            <ParamField path="body.metaProperties" type="object">
+              Metadata stored in the prompt's access history.
+            </ParamField>
+
+            #### Response fields
+
+            <ResponseField name="err" type="null | string">
+              `null` on success, or an error message string on failure.
+            </ResponseField>
+
+            <ResponseField name="res" type="object">
+              <Expandable title="properties" defaultOpen>
+                <ResponseField name="promptId" type="string">
+                  Unique identifier for the prompt.
+                </ResponseField>
+                <ResponseField name="name" type="string">
+                  The prompt name as stored in Prompt Hub.
+                </ResponseField>
+                <ResponseField name="version" type="string">
+                  Semantic version of the returned prompt (e.g. `3.3.3`).
+                </ResponseField>
+                <ResponseField name="tags" type="string[]">
+                  Tags associated with the prompt.
+                </ResponseField>
+                <ResponseField name="metaProperties" type="object">
+                  Key-value metadata stored alongside the prompt.
+                </ResponseField>
+                <ResponseField name="prompt" type="string">
+                  The raw prompt text, including any unresolved `{{variable}}` placeholders.
+                </ResponseField>
+                <ResponseField name="compiledPrompt" type="string">
+                  The prompt with all variables substituted. Present only when `shouldCompile` is `true`.
+                </ResponseField>
+              </Expandable>
+            </ResponseField>
+          </Tab>
+        </Tabs>
+      </Step>
+    </Steps>
+  </Step>
+</Steps>
+
+---
+
+<CardGroup cols={3}>
+  <Card title="Vault" href="/openlit/secrets/vault" icon="vault">
+    Centrally store LLM API keys that applications can retrieve remotely without restarts
+  </Card>
+  <Card title="Dashboards" href="/openlit/dashboards/overview" icon="grid">
+    Create custom visualizations with flexible widgets, queries, and real-time AI monitoring
+  </Card>
+  <Card title="OpenGround" href="/openlit/experiments/openground" icon="flask">
+    Compare cost, duration, and response tokens across different LLMs to find the most efficient model
+  </Card>
+</CardGroup>

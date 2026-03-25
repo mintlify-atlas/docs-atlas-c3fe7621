@@ -1,0 +1,132 @@
+---
+title: "Quickstart"
+description: "Get LLM observability running in under 5 minutes"
+---
+
+This guide walks you through deploying OpenLIT and sending your first LLM trace.
+
+<Steps>
+  <Step title="Deploy OpenLIT">
+    Clone the repository and start the full stack with Docker Compose:
+
+    ```bash
+    git clone git@github.com:openlit/openlit.git
+    cd openlit
+    docker compose up -d
+    ```
+
+    This starts:
+    - OpenLIT UI at [http://127.0.0.1:3000](http://127.0.0.1:3000)
+    - OpenTelemetry Collector on ports 4317 (gRPC) and 4318 (HTTP)
+    - ClickHouse database on port 8123
+  </Step>
+
+  <Step title="Install the OpenLIT SDK">
+    <CodeGroup>
+      ```bash Python
+      pip install openlit
+      ```
+
+      ```bash TypeScript
+      npm install openlit
+      ```
+    </CodeGroup>
+  </Step>
+
+  <Step title="Initialize OpenLIT in your application">
+    Add these two lines at the start of your application, before any LLM calls:
+
+    <CodeGroup>
+      ```python Python
+      import openlit
+
+      openlit.init(otlp_endpoint="http://127.0.0.1:4318")
+      ```
+
+      ```typescript TypeScript
+      import OpenLIT from "openlit";
+
+      OpenLIT.init({ otlpEndpoint: "http://127.0.0.1:4318" });
+      ```
+    </CodeGroup>
+
+    <Tip>
+      If you omit `otlp_endpoint`, OpenLIT prints traces to the console — useful during development without a running collector.
+    </Tip>
+  </Step>
+
+  <Step title="Make an LLM call">
+    OpenLIT auto-instruments any supported LLM library you have installed. Here's an example using OpenAI:
+
+    <CodeGroup>
+      ```python Python
+      import openlit
+      from openai import OpenAI
+
+      openlit.init(otlp_endpoint="http://127.0.0.1:4318")
+
+      client = OpenAI()
+
+      response = client.chat.completions.create(
+          model="gpt-4o",
+          messages=[{"role": "user", "content": "What is OpenTelemetry?"}]
+      )
+      print(response.choices[0].message.content)
+      ```
+
+      ```typescript TypeScript
+      import OpenLIT from "openlit";
+      import OpenAI from "openai";
+
+      OpenLIT.init({ otlpEndpoint: "http://127.0.0.1:4318" });
+
+      const client = new OpenAI();
+
+      const response = await client.chat.completions.create({
+        model: "gpt-4o",
+        messages: [{ role: "user", content: "What is OpenTelemetry?" }],
+      });
+      console.log(response.choices[0].message.content);
+      ```
+    </CodeGroup>
+  </Step>
+
+  <Step title="View your traces">
+    Open [http://127.0.0.1:3000](http://127.0.0.1:3000) and log in with the default credentials:
+
+    | Field | Value |
+    |-------|-------|
+    | Email | `user@openlit.io` |
+    | Password | `openlituser` |
+
+    Navigate to **Requests** to see your LLM traces, including model name, token usage, cost, and latency.
+  </Step>
+</Steps>
+
+## What gets traced automatically
+
+OpenLIT auto-detects and instruments any supported library installed in your environment:
+
+- **LLM calls** — model, prompt, completion, tokens, cost, latency, finish reason
+- **Agent traces** — tool calls, chain steps, memory operations
+- **Vector DB operations** — collection, operation type, latency
+- **GPU metrics** — utilization, memory, temperature (when `collect_gpu_stats=True`)
+
+No code changes are needed beyond `openlit.init()`.
+
+## Next steps
+
+<CardGroup cols={2}>
+  <Card title="SDK configuration" icon="sliders" href="/sdk/configuration">
+    Full list of openlit.init() parameters for customizing instrumentation
+  </Card>
+  <Card title="Integrations" icon="plug" href="/sdk/integrations/overview">
+    Browse all 50+ supported LLM providers, frameworks, and vector databases
+  </Card>
+  <Card title="Evaluations" icon="ruler" href="/openlit/evaluations/overview">
+    Set up automatic LLM response quality evaluation
+  </Card>
+  <Card title="Dashboards" icon="grid" href="/openlit/dashboards/overview">
+    Build custom dashboards for your AI telemetry
+  </Card>
+</CardGroup>

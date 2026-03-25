@@ -1,0 +1,118 @@
+---
+title: "Deploy OpenLIT"
+description: "Self-host OpenLIT with Docker Compose or Kubernetes using Helm"
+---
+
+OpenLIT is lightweight to self-host. It requires three components:
+
+1. **OpenLIT** — the platform UI and backend
+2. **ClickHouse** — for storing telemetry data
+3. **OpenTelemetry Collector** — for receiving traces and metrics
+
+<Info>
+If you already have ClickHouse or an OpenTelemetry Collector, you can reuse them. OpenLIT can connect to your existing infrastructure.
+</Info>
+
+<CardGroup cols={2}>
+  <Card title="Docker Compose" icon="docker" href="#docker-compose">
+    Quickest way to get started — deploys all three components with one command
+  </Card>
+  <Card title="Kubernetes" icon="cubes" href="#kubernetes">
+    Production-ready deployment using the OpenLIT Helm chart
+  </Card>
+</CardGroup>
+
+## Docker Compose
+
+Docker Compose is the fastest way to run OpenLIT locally or on a single server.
+
+<Steps>
+  <Step title="Clone the repository">
+    ```bash
+    git clone git@github.com:openlit/openlit.git
+    cd openlit
+    ```
+  </Step>
+  <Step title="Start the stack">
+    From the root directory of the repository:
+    ```bash
+    docker compose up -d
+    ```
+    This starts OpenLIT (port 3000), ClickHouse (port 8123), and the OpenTelemetry Collector (ports 4317 and 4318).
+  </Step>
+  <Step title="Open the UI">
+    Navigate to [http://127.0.0.1:3000](http://127.0.0.1:3000) and log in with the default credentials:
+
+    | Field | Value |
+    |-------|-------|
+    | Email | `user@openlit.io` |
+    | Password | `openlituser` |
+
+    <Warning>
+    Change the default credentials immediately for any non-local deployment.
+    </Warning>
+  </Step>
+</Steps>
+
+### Upgrading Docker Compose
+
+When upgrading from versions prior to 1.15.0 (which introduced Fleet Hub), use the `--remove-orphans` flag:
+
+```bash
+docker compose up -d --remove-orphans
+```
+
+This removes the now-obsolete standalone `otel-collector` container, which conflicts with the new integrated collector on ports 4317 and 4318.
+
+## Kubernetes
+
+Deploy OpenLIT on Kubernetes using the official Helm chart. The chart deploys all three components.
+
+<Steps>
+  <Step title="Add the Helm repository">
+    ```bash
+    helm repo add openlit https://openlit.github.io/helm/
+    helm repo update
+    ```
+  </Step>
+  <Step title="Install the Helm chart">
+    ```bash
+    helm install openlit openlit/openlit
+    ```
+    To install in a specific namespace:
+    ```bash
+    helm install openlit openlit/openlit --namespace openlit --create-namespace
+    ```
+  </Step>
+  <Step title="Verify the deployment">
+    ```bash
+    kubectl get pods -n openlit
+    ```
+  </Step>
+</Steps>
+
+## Ports
+
+| Port | Protocol | Description |
+|------|----------|-------------|
+| `3000` | HTTP | OpenLIT UI |
+| `4317` | gRPC | OTLP traces and metrics (gRPC) |
+| `4318` | HTTP | OTLP traces and metrics (HTTP) |
+| `8123` | HTTP | ClickHouse HTTP interface |
+
+## Next steps
+
+<CardGroup cols={2}>
+  <Card title="Quickstart" icon="bolt" href="/openlit/quickstart">
+    Get LLM observability running in under 5 minutes
+  </Card>
+  <Card title="Configuration" icon="sliders" href="/openlit/configuration">
+    Configure environment variables, database connections, and OAuth
+  </Card>
+  <Card title="Dashboards" icon="grid" href="/openlit/dashboards/overview">
+    Create custom visualizations for your AI telemetry data
+  </Card>
+  <Card title="Kubernetes Operator" icon="cubes" href="/operator/overview">
+    Auto-inject instrumentation into workloads without code changes
+  </Card>
+</CardGroup>

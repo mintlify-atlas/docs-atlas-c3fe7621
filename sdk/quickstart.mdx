@@ -1,0 +1,151 @@
+---
+title: "SDK quickstart"
+description: "Get from zero to your first AI trace in three steps."
+---
+
+<Check>
+  OpenLIT automatically instruments LLMs, vector databases, MCP, and frameworks — no manual span creation needed.
+</Check>
+
+<Steps>
+  <Step title="Install the SDK">
+    <CodeGroup>
+
+    ```bash Python
+    pip install openlit
+    ```
+
+    ```bash TypeScript
+    npm install openlit
+    ```
+
+    </CodeGroup>
+  </Step>
+
+  <Step title="Initialize OpenLIT in your application">
+    Call `openlit.init()` once, as early as possible in your application — before any LLM client is imported or constructed.
+
+    <CodeGroup>
+
+    ```python Python
+    import openlit
+
+    openlit.init(
+        otlp_endpoint="http://127.0.0.1:4318",
+        service_name="my-ai-app",
+        environment="production",
+    )
+    ```
+
+    ```typescript TypeScript
+    import Openlit from "openlit";
+
+    Openlit.init({
+      otlpEndpoint: "http://127.0.0.1:4318",
+      applicationName: "my-ai-app",
+      environment: "production",
+    });
+    ```
+
+    </CodeGroup>
+
+    <Tip>
+      If you omit `otlp_endpoint`, OpenLIT still initialises and instruments your libraries. Traces are produced but not exported anywhere — useful for local development and testing.
+    </Tip>
+  </Step>
+
+  <Step title="Make an LLM call">
+    Use any supported library normally. OpenLIT intercepts the call and records a span automatically.
+
+    <CodeGroup>
+
+    ```python Python (OpenAI)
+    from openai import OpenAI
+    import openlit
+
+    openlit.init(otlp_endpoint="http://127.0.0.1:4318")
+
+    client = OpenAI()  # uses OPENAI_API_KEY env var
+
+    response = client.chat.completions.create(
+        model="gpt-4o-mini",
+        messages=[{"role": "user", "content": "What is LLM observability?"}],
+    )
+
+    print(response.choices[0].message.content)
+    ```
+
+    ```typescript TypeScript (OpenAI)
+    import Openlit from "openlit";
+    import OpenAI from "openai";
+
+    Openlit.init({
+      otlpEndpoint: "http://127.0.0.1:4318",
+      instrumentations: { openai: OpenAI },
+    });
+
+    async function main() {
+      const openai = new OpenAI();
+      const response = await openai.chat.completions.create({
+        model: "gpt-4o-mini",
+        messages: [{ role: "user", content: "What is LLM observability?" }],
+      });
+      console.log(response.choices[0].message.content);
+    }
+
+    main();
+    ```
+
+    </CodeGroup>
+
+    Each call produces a span with attributes including:
+
+    - Model name and provider
+    - Prompt and completion tokens
+    - Estimated cost in USD
+    - Latency (wall-clock duration)
+    - Prompt and response content (disable with `capture_message_content=False`)
+  </Step>
+</Steps>
+
+## Zero-code instrumentation (CLI)
+
+If you cannot modify your application source, use the `openlit-instrument` CLI wrapper instead. It injects instrumentation at process startup with no code changes:
+
+```bash
+# Install
+pip install openlit
+
+# Run your application with automatic instrumentation
+export OTEL_EXPORTER_OTLP_ENDPOINT=http://127.0.0.1:4318
+export OTEL_SERVICE_NAME=my-ai-app
+openlit-instrument python your_app.py
+```
+
+<Note>
+  `openlit-instrument` is a drop-in replacement for `opentelemetry-instrument`. It provides the same upstream OpenTelemetry instrumentations plus all AI-specific capabilities.
+</Note>
+
+## What to expect when no OTLP endpoint is configured
+
+When you call `openlit.init()` without an `otlp_endpoint` and without the `OTEL_EXPORTER_OTLP_ENDPOINT` environment variable set, OpenLIT initialises successfully but does not export any data. You will see a log message similar to:
+
+```
+INFO:openlit:Starting openLIT initialization...
+```
+
+No spans or metrics are lost — they are generated in memory but discarded because no exporter is configured. This is safe for local development.
+
+## Next steps
+
+<CardGroup cols={3}>
+  <Card title="Configuration" href="/sdk/configuration" icon="sliders">
+    All openlit.init() parameters and their environment variable equivalents
+  </Card>
+  <Card title="Tracing" href="/sdk/features/tracing" icon="chart-line">
+    Custom spans, content capture options, and manual tracing
+  </Card>
+  <Card title="Integrations" href="/sdk/integrations/overview" icon="circle-nodes">
+    60+ supported LLM providers, frameworks, and databases
+  </Card>
+</CardGroup>

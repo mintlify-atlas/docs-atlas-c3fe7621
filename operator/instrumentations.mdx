@@ -1,0 +1,277 @@
+---
+title: "Instrumentations"
+description: "Annotate Kubernetes Deployments for automatic Python instrumentation and choose from OpenLIT, OpenInference, OpenLLMetry, or a custom provider."
+---
+
+Instrumentation is the process of adding observability code to collect telemetry — traces, metrics, logs, and cost data — from your AI applications. The OpenLIT Operator injects this code automatically, without requiring changes to your application.
+
+## How instrumentation is injected
+
+<Steps>
+  <Step title="Webhook interception">
+    The operator's mutating admission webhook intercepts every pod creation request in namespaces where an `AutoInstrumentation` resource exists.
+  </Step>
+
+  <Step title="Label matching">
+    The webhook checks whether the pod's labels match the `spec.selector` of any `AutoInstrumentation` resource in the same namespace.
+  </Step>
+
+  <Step title="Init container injection">
+    If the pod matches, the webhook mutates the pod spec to add an init container using the configured instrumentation provider's image.
+  </Step>
+
+  <Step title="Environment setup">
+    The init container copies instrumentation packages to a shared `emptyDir` volume and sets up the Python path and OpenTelemetry environment variables.
+  </Step>
+
+  <Step title="Application start">
+    Your application container starts with `PYTHONPATH` pointing to the instrumentation packages. Instrumentation is active from the first line of your code.
+  </Step>
+
+  <Step title="Telemetry collection">
+    Traces, metrics, and cost data are automatically collected and forwarded to the OTLP endpoint you configured.
+  </Step>
+</Steps>
+
+## Annotating a Deployment
+
+To instrument a Deployment, add matching labels so the `AutoInstrumentation` selector picks it up. If you used the quickstart `AutoInstrumentation` resource with `matchLabels: instrumentation: openlit`, label your Deployment like this:
+
+```yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: my-ai-app
+  namespace: default
+spec:
+  selector:
+    matchLabels:
+      app: my-ai-app
+  template:
+    metadata:
+      labels:
+        app: my-ai-app
+        instrumentation: openlit   # matches the AutoInstrumentation selector
+    spec:
+      containers:
+      - name: app
+        image: my-ai-app:latest
+```
+
+<Tip>
+  The label can be anything — it just needs to match the `spec.selector.matchLabels` in your `AutoInstrumentation` resource. Using a dedicated label like `instrumentation: openlit` keeps things explicit.
+</Tip>
+
+## Supported providers
+
+The operator supports four instrumentation providers. Choose based on your observability requirements and the standards your organization follows.
+
+### OpenLIT
+
+Full AI observability built on OpenTelemetry. Provides 50+ AI instrumentations including comprehensive cost tracking, GPU metrics, and agent workflow tracing.
+
+```yaml
+apiVersion: openlit.io/v1alpha1
+kind: AutoInstrumentation
+metadata:
+  name: openlit-instrumentation
+  namespace: default
+spec:
+  selector:
+    matchLabels:
+      instrumentation: openlit
+  python:
+    instrumentation:
+      enabled: true
+      provider: "openlit"
+      version: "latest"
+  otlp:
+    endpoint: "http://openlit.openlit.svc.cluster.local:4318"
+  resource:
+    environment: "production"
+    serviceName: "my-ai-service"
+```
+
+### OpenInference
+
+OpenInference conventions built on top of OpenTelemetry for tracing AI applications. Covers 30+ instrumentations with a focus on OpenTelemetry standard compliance.
+
+```yaml
+apiVersion: openlit.io/v1alpha1
+kind: AutoInstrumentation
+metadata:
+  name: openinference-instrumentation
+  namespace: default
+spec:
+  selector:
+    matchLabels:
+      instrumentation: openinference
+  python:
+    instrumentation:
+      enabled: true
+      provider: "openinference"
+      version: "v0.5.0"
+      imagePullPolicy: "Always"
+  otlp:
+    endpoint: "http://openlit.openlit.svc.cluster.local:4318"
+```
+
+### OpenLLMetry
+
+A set of OpenTelemetry extensions focused on LLM observability. Covers 30+ instrumentations across LLM providers and frameworks.
+
+```yaml
+apiVersion: openlit.io/v1alpha1
+kind: AutoInstrumentation
+metadata:
+  name: openllmetry-instrumentation
+  namespace: default
+spec:
+  selector:
+    matchLabels:
+      instrumentation: openllmetry
+  python:
+    instrumentation:
+      enabled: true
+      provider: "openllmetry"
+      version: "v1.2.0"
+      customPackages: "openai>=1.0.0,anthropic>=0.8.0"
+  otlp:
+    endpoint: "http://openlit.openlit.svc.cluster.local:4318"
+```
+
+### Custom provider
+
+Bring your own instrumentation init container image. Useful when you have a private fork, a specific pinned version, or a fully custom instrumentation setup.
+
+```yaml
+apiVersion: openlit.io/v1alpha1
+kind: AutoInstrumentation
+metadata:
+  name: custom-instrumentation
+  namespace: default
+spec:
+  selector:
+    matchLabels:
+      instrumentation: custom
+  python:
+    instrumentation:
+      enabled: true
+      provider: "custom"
+      customInitImage: "my-registry.example.com/custom-openlit:v2.0.0"
+      imagePullPolicy: "Always"
+      customPackages: "my-custom-package>=1.0.0"
+  otlp:
+    endpoint: "http://openlit.openlit.svc.cluster.local:4318"
+```
+
+## Provider comparison
+
+| Feature | OpenLIT | OpenInference | OpenLLMetry | Custom |
+|---------|---------|---------------|-------------|--------|
+| AI instrumentations | 50+ | 30+ | 30+ | Depends |
+| Cost tracking | Advanced | Basic | Basic | Depends |
+| Performance metrics | Comprehensive | Standard | Standard | Depends |
+| Vendor lock-in | None | None | None | None |
+
+## Custom configuration
+
+### Additional pip packages
+
+Install extra packages alongside the instrumentation provider using `customPackages`:
+
+```yaml
+spec:
+  python:
+    instrumentation:
+      provider: "openlit"
+      customPackages: "langchain>=0.1.0,chromadb>=0.4.0,numpy==1.21.0"
+```
+
+### Environment variables
+
+Inject environment variables into instrumented containers via `spec.python.instrumentation.env`. These accept plain values, `secretKeyRef`, `configMapKeyRef`, and `fieldRef` sources:
+
+```yaml
+spec:
+  python:
+    instrumentation:
+      provider: "openlit"
+      env:
+      - name: OPENLIT_ENVIRONMENT
+        value: "production"
+      - name: OPENLIT_API_KEY
+        valueFrom:
+          secretKeyRef:
+            name: openlit-secret
+            key: api-key
+      - name: POD_NAME
+        valueFrom:
+          fieldRef:
+            fieldPath: metadata.name
+```
+
+### Excluding pods from instrumentation
+
+Use `spec.ignore` to skip specific pods even when they match the main selector:
+
+```yaml
+spec:
+  selector:
+    matchLabels:
+      team: ai-platform
+  ignore:
+    matchLabels:
+      openlit.io/skip: "true"
+    matchExpressions:
+    - key: environment
+      operator: In
+      values: ["test", "dev"]
+```
+
+## Troubleshooting
+
+<AccordionGroup>
+  <Accordion title="Provider image not found">
+    **Symptoms:** Init container fails with image pull errors
+
+    ```bash
+    # Confirm the image is accessible
+    docker pull ghcr.io/openlit/openlit-ai-instrumentation:latest
+
+    # Check the AutoInstrumentation config
+    kubectl get autoinstrumentation -o yaml
+
+    # Check operator logs
+    kubectl logs -n openlit deployment/openlit-operator
+    ```
+  </Accordion>
+
+  <Accordion title="Package version conflicts">
+    **Symptoms:** Application fails to start with pip dependency errors
+
+    Pin packages to specific versions:
+
+    ```yaml
+    spec:
+      python:
+        instrumentation:
+          customPackages: "langchain==0.1.0,openai==1.0.0"
+    ```
+  </Accordion>
+
+  <Accordion title="No telemetry data">
+    **Symptoms:** The application starts but no traces appear in your backend
+
+    ```bash
+    # Check that OTel environment variables were injected
+    kubectl exec <pod-name> -- env | grep OTEL
+
+    # Test connectivity to the OTLP endpoint
+    kubectl exec <pod-name> -- curl http://openlit:4318/v1/traces
+
+    # Check application logs for OpenTelemetry output
+    kubectl logs <pod-name> | grep -i opentelemetry
+    ```
+  </Accordion>
+</AccordionGroup>

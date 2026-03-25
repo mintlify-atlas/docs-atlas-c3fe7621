@@ -1,0 +1,165 @@
+---
+title: "Tracing"
+description: "Automatic and manual distributed tracing for LLM calls, agent workflows, and the full request path."
+---
+
+OpenLIT automatically creates OpenTelemetry spans for every instrumented LLM call, agent step, vector database query, and HTTP request in your application. You get end-to-end distributed traces with no manual instrumentation.
+
+## What is captured automatically
+
+Every auto-instrumented span includes:
+
+| Attribute | Description |
+|---|---|
+| `gen_ai.system` | Provider name (for example, `openai`, `anthropic`) |
+| `gen_ai.request.model` | Model name requested |
+| `gen_ai.response.model` | Model name returned by the API |
+| `gen_ai.usage.prompt_tokens` | Input token count |
+| `gen_ai.usage.completion_tokens` | Output token count |
+| `gen_ai.usage.total_tokens` | Total tokens |
+| `gen_ai.usage.cost` | Estimated cost in USD |
+| `gen_ai.input.messages` | Prompt content (when `capture_message_content=True`) |
+| `gen_ai.output.messages` | Completion content (when `capture_message_content=True`) |
+| `service.name` | Your application name |
+| `deployment.environment` | Your deployment environment |
+
+## Control content capture
+
+By default, OpenLIT captures prompt and response content as span attributes. Disable this for privacy-sensitive workloads:
+
+```python
+import openlit
+
+openlit.init(capture_message_content=False)
+```
+
+Or use the environment variable:
+
+```bash
+export OTEL_INSTRUMENTATION_GENAI_CAPTURE_MESSAGE_CONTENT=false
+```
+
+## Limit content length
+
+To cap the size of captured content and reduce trace storage costs, set `max_content_length` to a positive integer. Content exceeding the limit is truncated with `...` appended. `None` (default), `0`, or `-1` disables truncation.
+
+```python
+# Truncate captured content to 500 characters
+openlit.init(max_content_length=500)
+```
+
+Or via environment variable:
+
+```bash
+export OPENLIT_MAX_CONTENT_LENGTH=500
+```
+
+## Disable batch processing
+
+By default, the SDK uses the OpenTelemetry batch span processor. During local development you may want spans to appear immediately:
+
+```python
+openlit.init(disable_batch=True)
+```
+
+## Disable specific instrumentations
+
+OpenLIT automatically detects and instruments all supported libraries it finds in your environment. To skip specific ones:
+
+```python
+openlit.init(disabled_instrumentors=["anthropic", "langchain"])
+```
+
+## Use an existing tracer
+
+If your application already configures an OpenTelemetry tracer, pass it to OpenLIT so both use the same provider:
+
+```python
+from opentelemetry import trace
+
+# Your existing tracer setup
+tracer = trace.get_tracer("my-app")
+
+import openlit
+openlit.init(tracer=tracer)
+```
+
+## Add custom resource attributes
+
+OpenLIT sets the following resource attributes on every span by default:
+
+- `telemetry.sdk.name: openlit`
+- `service.name: <your service name>`
+- `deployment.environment: <your environment>`
+
+You can add your own attributes on top using the standard OpenTelemetry environment variable:
+
+```bash
+export OTEL_RESOURCE_ATTRIBUTES="service.instance.id=abc123,k8s.pod.name=my-pod,k8s.namespace.name=production"
+```
+
+## Manual tracing
+
+For code that is not auto-instrumented, you can create custom spans using the `@openlit.trace` decorator or the `openlit.start_trace` context manager.
+
+### Decorator
+
+Apply `@openlit.trace` to a function. Any auto-instrumented LLM calls made inside the function are grouped under the parent span:
+
+```python
+import openlit
+from openai import OpenAI
+
+client = OpenAI()
+
+@openlit.trace
+def generate_one_liner():
+    return client.chat.completions.create(
+        model="gpt-4o-mini",
+        messages=[{"role": "system", "content": "Give me a famous movie one-liner."}],
+    )
+```
+
+### Context manager
+
+For more control — including setting a result value and custom metadata — use `openlit.start_trace`:
+
+```python
+import openlit
+from openai import OpenAI
+
+client = OpenAI()
+
+def guess_movie(one_liner: str):
+    with openlit.start_trace("guess-movie") as trace:
+        response = client.chat.completions.create(
+            model="gpt-4o-mini",
+            messages=[{"role": "user", "content": f"Which movie is this from: {one_liner}"}],
+        )
+        result = response.choices[0].message.content
+
+        # Attach the final result and any custom metadata to the span
+        trace.set_result(result)
+        trace.set_metadata({"one_liner": one_liner, "model": "gpt-4o-mini"})
+
+        return result
+```
+
+`TracedSpan` methods:
+
+| Method | Description |
+|---|---|
+| `trace.set_result(value)` | Sets the `gen_ai.output.messages` attribute on the span |
+| `trace.set_metadata(dict)` | Sets multiple span attributes from a dictionary |
+
+<CardGroup cols={3}>
+  <Card title="Configuration" href="/sdk/configuration" icon="sliders">
+    All init() parameters including content capture options
+  </Card>
+  <Card title="Integrations" href="/sdk/integrations/overview" icon="circle-nodes">
+    Full list of auto-instrumented libraries
+  </Card>
+  <Card title="Destinations" href="/sdk/destinations/overview" icon="link">
+    Send traces to Datadog, Grafana, New Relic, and more
+  </Card>
+</CardGroup>

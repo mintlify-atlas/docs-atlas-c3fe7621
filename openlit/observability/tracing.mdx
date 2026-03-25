@@ -1,0 +1,99 @@
+---
+title: "Tracing"
+description: "View and analyze distributed traces from your AI applications in OpenLIT."
+---
+
+OpenLIT gives you full visibility into how requests flow through your AI applications. Every LLM call, agent step, tool invocation, and vector database query is captured as a span, assembled into a distributed trace, and stored in ClickHouse — ready to query the moment it arrives.
+
+<Note>
+  OpenLIT accepts any OTLP-compatible trace data. If your existing infrastructure already emits OpenTelemetry traces, they appear in the traces view without any additional configuration.
+</Note>
+
+## How tracing works
+
+When you instrument your application with the OpenLIT SDK, it wraps every AI call with an OpenTelemetry span. Spans are linked by a common `trace_id`, so a single user request — even one that fans out across multiple LLM calls or agent hops — appears as one unified trace.
+
+The instrumentation captures:
+
+- **LLM calls** — model, prompt, completion, token counts, cost, latency
+- **Agent traces** — each tool call and reasoning step as child spans
+- **Vector database operations** — query, insert, and retrieval spans
+- **Framework activity** — LangChain, LlamaIndex, and other AI framework spans
+
+All spans are exported over OTLP (gRPC or HTTP) to OpenLIT, which stores them in ClickHouse and makes them available for exploration.
+
+## Viewing traces
+
+### Traces page
+
+Navigate to **Traces** (`/traces`) to see every distributed trace from your AI applications. The list view shows:
+
+- Trace ID and root span name
+- Timestamp and total duration
+- Deployment environment and service name
+- Status (success or error)
+
+Use the time range selector to scope the view to 24 hours, 7 days, 1 month, 3 months, or a custom range. You can also filter by environment, model, or span status to narrow down to the traces you care about.
+
+### Trace details
+
+Click any trace to open the detailed view. You see a waterfall diagram of all spans in the trace, with each span showing:
+
+- Span name, kind, and status
+- Start time and duration
+- All captured attributes (see below)
+- Nested child spans that reflect the execution hierarchy
+
+### Dashboard widgets
+
+Beyond the dedicated Traces page, you can embed trace data directly into any OpenLIT dashboard. Create widgets that plot latency trends, request volume by model, error rates, or any other metric derived from your trace attributes. This lets you monitor trace-level signals alongside cost and GPU data on a single screen.
+
+## Trace attributes
+
+OpenLIT captures a rich set of attributes on every AI span. The table below shows the key attributes recorded for LLM calls:
+
+| Attribute | Description | Example |
+|---|---|---|
+| `gen_ai.system` | The AI provider | `openai` |
+| `gen_ai.request.model` | Model name requested | `gpt-4o` |
+| `gen_ai.response.model` | Model name returned by the API | `gpt-4o-2024-08-06` |
+| `gen_ai.usage.input_tokens` | Prompt tokens consumed | `512` |
+| `gen_ai.usage.output_tokens` | Completion tokens generated | `128` |
+| `gen_ai.usage.total_tokens` | Total tokens | `640` |
+| `gen_ai.usage.cost` | Estimated cost in USD | `0.0032` |
+| `gen_ai.request.temperature` | Sampling temperature | `0.7` |
+| `gen_ai.request.max_tokens` | Max tokens requested | `1024` |
+| `gen_ai.operation.name` | Operation type | `chat`, `embedding`, `image_generation` |
+| `server.address` | API endpoint host | `api.openai.com` |
+| `server.port` | API endpoint port | `443` |
+| `deployment.environment` | Environment tag | `production` |
+
+For agent and framework spans, additional attributes capture tool names, retrieval scores, chain step names, and other framework-specific context.
+
+## OpenTelemetry compatibility
+
+OpenLIT's trace storage is built on the OpenTelemetry data model. Any instrumentation that emits OTLP traces — whether from the OpenLIT SDK, the OpenTelemetry Python SDK, or a community auto-instrumentation library — is accepted and visualized without modification.
+
+This means you can:
+
+- Combine OpenLIT AI spans with infrastructure spans from your existing OTel setup
+- Send traces from any language that has an OTLP exporter
+- Use the OpenTelemetry Collector to fan out traces to OpenLIT and other backends simultaneously
+
+<Tip>
+  Set `OTEL_EXPORTER_OTLP_ENDPOINT` to your OpenLIT instance and all OTLP-compatible instrumentation in your application will automatically forward traces there.
+</Tip>
+
+---
+
+<CardGroup cols={3}>
+  <Card title="Quickstart: LLM Observability" href="/openlit/quickstart" icon="bolt">
+    Production-ready AI monitoring setup in a single line of code
+  </Card>
+  <Card title="Create a dashboard" href="/openlit/dashboards/overview" icon="grid">
+    Create custom visualizations with flexible widgets, queries, and real-time AI monitoring
+  </Card>
+  <Card title="Integrations" href="/sdk/integrations/overview" icon="circle-nodes">
+    60+ AI integrations with automatic instrumentation and performance tracking
+  </Card>
+</CardGroup>

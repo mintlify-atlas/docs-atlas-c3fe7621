@@ -1,0 +1,272 @@
+---
+title: "Programmatic evaluations"
+description: "Run hallucination, bias, and toxicity evaluations directly from Python code using the OpenLIT SDK"
+---
+
+The OpenLIT Python SDK exposes evaluator classes that you can call directly in your application code, test suites, or CI/CD pipelines. Each evaluator uses an LLM judge to score a given text and returns a structured result you can assert on, log, or forward to OpenLIT.
+
+## Install the SDK
+
+```bash
+pip install openlit
+```
+
+## Available evaluators
+
+The SDK ships four evaluator classes in `openlit.evals`:
+
+| Class | Import | What it detects |
+|---|---|---|
+| `Hallucination` | `from openlit.evals import Hallucination` | Factual inaccuracies, contradictions, nonsensical or gibberish responses |
+| `BiasDetector` | `from openlit.evals import BiasDetector` | Gender, age, ethnicity, religion, and other demographic biases |
+| `ToxicityDetector` | `from openlit.evals import ToxicityDetector` | Threats, hate speech, personal attacks, mockery, and dismissive language |
+| `All` | `from openlit.evals import All` | Hallucination, bias, and toxicity combined in a single call |
+
+## Quickstart
+
+Every evaluator follows the same two-step pattern: instantiate the class with your LLM provider settings, then call `.measure()` with the text you want to evaluate.
+
+<CodeGroup>
+
+```python Hallucination
+from openlit.evals import Hallucination
+
+detector = Hallucination(
+    provider="openai",
+    api_key="sk-...",  # or set OPENAI_API_KEY env var
+    threshold_score=0.5,
+)
+
+result = detector.measure(
+    prompt="What year did Einstein win the Nobel Prize?",
+    contexts=[
+        "Einstein won the Nobel Prize for Physics in 1921.",
+    ],
+    text="Einstein won the Nobel Prize in 1969.",
+)
+
+print(result.score)          # 0.9
+print(result.verdict)        # "yes"
+print(result.classification) # "factual_inaccuracy"
+print(result.explanation)    # "The text incorrectly states 1969; context says 1921."
+```
+
+```python Bias detection
+from openlit.evals import BiasDetector
+
+detector = BiasDetector(
+    provider="openai",
+    api_key="sk-...",
+    threshold_score=0.5,
+)
+
+result = detector.measure(
+    prompt="Evaluate this job candidate summary.",
+    contexts=["The candidate has 10 years of software engineering experience."],
+    text="He's probably too old to keep up with modern frameworks.",
+)
+
+print(result.score)          # 0.85
+print(result.verdict)        # "yes"
+print(result.classification) # "age"
+print(result.explanation)    # "The text assumes incompetence based on the candidate's age."
+```
+
+```python Toxicity detection
+from openlit.evals import ToxicityDetector
+
+detector = ToxicityDetector(
+    provider="openai",
+    api_key="sk-...",
+    threshold_score=0.5,
+)
+
+result = detector.measure(
+    prompt="Respond to this user complaint.",
+    contexts=["The user reported a bug in the checkout flow."],
+    text="Your opinion is worthless and you're wasting everyone's time.",
+)
+
+print(result.score)          # 0.92
+print(result.verdict)        # "yes"
+print(result.classification) # "dismissive"
+print(result.explanation)    # "The response dismisses and belittles the user."
+```
+
+```python All (combined)
+from openlit.evals import All
+
+detector = All(
+    provider="openai",
+    api_key="sk-...",
+    threshold_score=0.5,
+)
+
+result = detector.measure(
+    prompt="Summarize the research findings.",
+    contexts=["The study found no significant correlation between X and Y."],
+    text="The study conclusively proved that X causes Y.",
+)
+
+print(result.evaluation)     # "hallucination"
+print(result.score)          # 0.88
+print(result.verdict)        # "yes"
+print(result.classification) # "factual_inaccuracy"
+```
+
+</CodeGroup>
+
+## Constructor parameters
+
+All four evaluator classes share the same constructor signature:
+
+<ParamField path="provider" type="str" default="openai">
+  The LLM provider to use as the judge. Supported values: `"openai"`, `"anthropic"`.
+</ParamField>
+
+<ParamField path="api_key" type="str">
+  The API key for the judge LLM provider. If omitted, the evaluator reads from the corresponding environment variable (`OPENAI_API_KEY` or `ANTHROPIC_API_KEY`).
+</ParamField>
+
+<ParamField path="model" type="str">
+  The specific model to use. Defaults to `gpt-4o-mini` for OpenAI and `claude-3-opus-20240229` for Anthropic.
+</ParamField>
+
+<ParamField path="base_url" type="str">
+  An optional custom base URL for the LLM API. Useful for routing through a proxy or using an OpenAI-compatible endpoint.
+</ParamField>
+
+<ParamField path="custom_categories" type="dict[str, str]">
+  A dictionary of additional evaluation categories to include beyond the built-in ones. Keys are category names and values are descriptions. The judge LLM uses these alongside the default categories.
+</ParamField>
+
+<ParamField path="threshold_score" type="float" default="0.5">
+  The score cutoff (0–1) above which the `verdict` is set to `"yes"` (failing). Lower values make the evaluator more sensitive.
+</ParamField>
+
+## `measure()` parameters
+
+All four evaluator classes share the same `measure()` signature:
+
+<ParamField path="prompt" type="str" default="">
+  The original user prompt that produced the response. Providing this gives the judge LLM additional context for scoring. Optional but recommended.
+</ParamField>
+
+<ParamField path="contexts" type="list[str]">
+  A list of reference sentences or documents that the response should be faithful to. Used primarily by the hallucination evaluator to detect factual drift.
+</ParamField>
+
+<ParamField path="text" type="str">
+  The LLM response text to evaluate. This is the primary input — the text that gets scored.
+</ParamField>
+
+<ParamField path="response_id" type="str">
+  An optional unique identifier for the LLM completion being evaluated. When provided, the evaluation result is correlated with that response ID in the OpenLIT telemetry event.
+</ParamField>
+
+## Return value: `JsonOutput`
+
+Every `.measure()` call returns a `JsonOutput` object with these fields:
+
+| Field | Type | Description |
+|---|---|---|
+| `score` | `float` | Confidence score from 0 to 1. Closer to 1 means the issue is more likely present |
+| `evaluation` | `str` | The evaluation type: `"hallucination"`, `"bias_detection"`, `"toxicity_detection"`, or `"none"` |
+| `classification` | `str` | The specific sub-category detected (e.g., `"factual_inaccuracy"`, `"age"`, `"threat"`) |
+| `explanation` | `str` | A short sentence explaining the detected issue |
+| `verdict` | `str` | `"yes"` if `score > threshold_score`, otherwise `"no"` |
+
+## Classification reference
+
+<Tabs>
+  <Tab title="Hallucination">
+    | Classification | Example |
+    |---|---|
+    | `factual_inaccuracy` | Response states an incorrect date, name, or statistic |
+    | `nonsensical_response` | Response is irrelevant to the prompt or context |
+    | `gibberish` | Response contains incoherent or meaningless text |
+    | `contradiction` | Response conflicts with itself or with the provided context |
+  </Tab>
+  <Tab title="Bias">
+    | Classification | Example |
+    |---|---|
+    | `sexual_orientation` | Assumes heterosexuality by default |
+    | `age` | Assumes technological incompetence based on age |
+    | `disability` | Assumes reduced capability due to a physical disability |
+    | `physical_appearance` | Makes judgments based on weight or appearance |
+    | `religion` | Applies behavioral stereotypes based on religious identity |
+    | `pregnancy_status` | Assumes reduced productivity for pregnant individuals |
+    | `marital_status` | Infers job commitment from relationship status |
+    | `nationality / location` | Applies national stereotypes to behavior or ability |
+    | `gender` | Assumes leadership capability based on gender |
+    | `ethnicity` | Makes generalizations based on racial or ethnic background |
+    | `socioeconomic_status` | Judges value or capability based on wealth |
+  </Tab>
+  <Tab title="Toxicity">
+    | Classification | Example |
+    |---|---|
+    | `threat` | "People like you should be banned from speaking." |
+    | `dismissive` | "Your opinion is worthless and you're wasting everyone's time." |
+    | `hate` | "This is the stupidest thing I've ever read." |
+    | `mockery` | "Oh, brilliant! Did it take you all day to come up with that?" |
+    | `personal_attack` | "You're clueless and have no idea what you're talking about." |
+  </Tab>
+</Tabs>
+
+## Custom categories
+
+You can extend any evaluator with additional classification categories by passing a `custom_categories` dictionary. The judge LLM includes these alongside the built-in categories when scoring.
+
+```python
+from openlit.evals import Hallucination
+
+detector = Hallucination(
+    provider="openai",
+    api_key="sk-...",
+    custom_categories={
+        "out_of_date": "The response references product features or prices that no longer exist.",
+        "scope_violation": "The response discusses topics outside the permitted domain for this assistant.",
+    },
+)
+
+result = detector.measure(
+    contexts=["Our current pricing starts at $49/month."],
+    text="You can get started for just $29/month.",
+)
+```
+
+## Use with OpenLIT tracing
+
+When you initialize OpenLIT with `openlit.init()`, evaluation results are automatically emitted as OpenTelemetry events alongside your traces. This means you can view programmatic evaluation scores directly in the OpenLIT dashboard without any additional configuration.
+
+```python
+import openlit
+from openlit.evals import Hallucination
+
+# Initialize OpenLIT tracing
+openlit.init(otlp_endpoint="http://localhost:4318")
+
+# Evaluations will automatically emit OTel events
+detector = Hallucination(provider="openai")
+result = detector.measure(
+    prompt="Describe our refund policy.",
+    contexts=["Refunds are available within 30 days of purchase."],
+    text="Refunds are available within 60 days of purchase.",
+    response_id="resp_abc123",  # correlates the eval with the original trace
+)
+```
+
+<Note>
+  Evaluation events are emitted as OpenTelemetry Log Records by default. Set `evals_logs_export=False` in `openlit.init()` to emit them as OTel Events instead, which is useful for backends that support events natively.
+</Note>
+
+---
+
+<CardGroup cols={2}>
+  <Card title="LLM-as-a-judge" href="/openlit/evaluations/llm-as-a-judge" icon="gavel">
+    Automatically evaluate production traces without touching your application code
+  </Card>
+  <Card title="OpenGround" href="/openlit/experiments/openground" icon="flask">
+    Compare LLM responses side-by-side to pick the best model for your use case
+  </Card>
+</CardGroup>

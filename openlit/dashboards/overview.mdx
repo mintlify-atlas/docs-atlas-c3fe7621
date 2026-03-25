@@ -1,0 +1,166 @@
+---
+title: "Dashboards"
+description: "Build interactive dashboards to monitor AI application performance, visualize telemetry data, and explore LLM operations in real time"
+---
+
+OpenLIT dashboards let you turn raw telemetry into actionable insights. You write SQL queries against your ClickHouse data, choose a visualization type, and arrange widgets on a canvas. Dashboards support filters, time ranges, and auto-refresh so you can monitor live systems without manual reloads.
+
+## How it works
+
+1. **Data collection** — AI telemetry flows through OpenTelemetry instrumentation into ClickHouse.
+2. **Query execution** — each widget runs an optimized SQL query against your telemetry data.
+3. **Visualization** — results render as charts, tables, statistics, or rich text.
+4. **Interactive analysis** — filters and time-range controls let you drill down and explore without editing queries.
+
+## Create a dashboard
+
+<Steps>
+  <Step title="Open the Dashboards section">
+    In OpenLIT, click **Dashboards** in the left navigation. The landing page lists all existing dashboards and folders.
+  </Step>
+
+  <Step title="Create a new dashboard">
+    1. Click **Create new dashboard** in the top-right corner.
+    2. In the popup, fill in the dashboard details:
+       - **Name** — a descriptive title (e.g. `LLM Observability`)
+       - **Description** — the dashboard's purpose (e.g. `Telemetry from LLM apps and AI Agents`)
+       - **Tags** — labels for organisation and search
+       - **Type** — select **Dashboard**
+    3. Click **Add**. You are taken to an empty canvas ready for widgets.
+  </Step>
+
+  <Step title="Add a widget">
+    1. Click **Create Your First Widget** on the empty canvas.
+    2. In the popup, choose one of two options:
+       - **Choose from existing widgets** — select a pre-built widget from the library
+       - **Create new widget** — click **+ Create New Widget** to build a custom one
+  </Step>
+
+  <Step title="Configure the widget">
+    The widget editor has two main tabs:
+
+    **General tab** — set the widget title, type, description, value path, prefix, and suffix.
+
+    **Query tab** — write a SQL query against ClickHouse. For example:
+
+    ```sql
+    SELECT count(*) FROM otel_traces
+    ```
+
+    Click **Run Query** to test it before saving.
+  </Step>
+
+  <Step title="Save and arrange">
+    Click **Save Changes** to add the widget to your dashboard. You can then:
+    - **Resize** widgets by dragging their corners
+    - **Reorder** widgets by dragging them to a new position
+    - **Add more widgets** by clicking **Create Widget**
+  </Step>
+</Steps>
+
+## Widget types
+
+Each widget type is designed for a different kind of data and use case.
+
+<CardGroup cols={2}>
+  <Card title="Area chart" icon="chart-area">
+    Visualize trends over time with smooth, layered charts. Ideal for metrics like token usage, request volume, or cost that change continuously.
+  </Card>
+  <Card title="Bar chart" icon="chart-bar">
+    Compare categories or segments side-by-side. Useful for showing grouped metrics such as errors by model or requests by provider.
+  </Card>
+  <Card title="Line chart" icon="chart-line">
+    Plot time-series data with precision. Best for tracking latency, throughput, or other performance metrics over time.
+  </Card>
+  <Card title="Pie chart" icon="chart-pie">
+    Show proportions and segment distribution. Good for visualizing things like traffic share by model or error categories.
+  </Card>
+  <Card title="Stat" icon="arrow-up-1-9">
+    Highlight a single key metric such as total requests, average latency, or estimated cost. Displays as a prominent number with optional prefix and suffix.
+  </Card>
+  <Card title="Table" icon="table">
+    Display structured query results in a paginated, sortable grid. Well-suited for audit logs, trace lists, and error details.
+  </Card>
+  <Card title="Markdown" icon="markdown">
+    Add notes, context, or section headers using Markdown. Useful for annotating dashboards or linking to related documentation.
+  </Card>
+</CardGroup>
+
+## Filters and time ranges
+
+Filters make dashboards interactive — you define a filter control at the dashboard level and bind its value into widget queries using mustache-style syntax.
+
+### Time range
+
+Select a preset time range at the top of any dashboard:
+
+| Range | Description |
+|---|---|
+| 24H | Last 24 hours |
+| 7D | Last 7 days |
+| 1M | Last calendar month |
+| 3M | Last 3 calendar months |
+| Custom | Any start and end date you choose |
+
+Reference the selected range inside a query with:
+
+```sql
+WHERE event_time BETWEEN {{filter.timeLimit.start}} AND {{filter.timeLimit.end}}
+```
+
+At runtime, OpenLIT replaces `{{filter.timeLimit.start}}` and `{{filter.timeLimit.end}}` with the values from the time range control.
+
+### Dynamic bindings
+
+Use `{{variable_name}}` anywhere in a widget's SQL query to inject a filter value. This keeps your queries flexible and reusable across different environments or segments.
+
+```sql
+SELECT
+  toStartOfHour(event_time) AS time,
+  count() AS value
+FROM user_events
+WHERE event_time BETWEEN {{filter.timeLimit.start}} AND {{filter.timeLimit.end}}
+GROUP BY time
+ORDER BY time
+```
+
+<Tip>
+  Use `coalesce({{param}}, 'default')` in ClickHouse to provide a fallback when a filter has no value selected.
+</Tip>
+
+## Auto-refresh
+
+You can configure a dashboard to re-fetch data automatically at a fixed interval:
+
+| Interval | Typical use case |
+|---|---|
+| Never | Static or historical dashboards |
+| 30 seconds | Live production monitoring |
+| 1 minute | Standard operational dashboards (default) |
+| 5 minutes | Low-frequency metric updates |
+| 10 minutes | Reduce ClickHouse query load |
+
+<Warning>
+  Avoid high refresh rates on queries that scan large data sets — frequent wide queries can put significant load on your ClickHouse backend.
+</Warning>
+
+## Organise dashboards
+
+As your dashboard library grows, use folders to keep things structured. You can nest folders inside other folders and drag-and-drop dashboards between them. Pin frequently used dashboards for quick access, or mark one as your **Main Dashboard** to set it as the default landing page.
+
+---
+
+<CardGroup cols={2}>
+  <Card title="Prompt Hub" href="/openlit/prompts/prompt-hub" icon="message">
+    Version, deploy, and retrieve prompts centrally without redeploying your application
+  </Card>
+  <Card title="Vault" href="/openlit/secrets/vault" icon="vault">
+    Centrally store LLM API keys and retrieve them at runtime
+  </Card>
+  <Card title="API reference" href="/openlit/api/introduction" icon="code">
+    Explore the REST API for programmatic access to prompts and secrets
+  </Card>
+  <Card title="Evaluations" href="/openlit/evaluations/overview" icon="check-circle">
+    Automatically score LLM outputs for quality, safety, and reliability
+  </Card>
+</CardGroup>

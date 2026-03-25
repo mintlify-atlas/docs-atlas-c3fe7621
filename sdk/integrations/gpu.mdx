@@ -1,0 +1,151 @@
+---
+title: "GPU integrations"
+description: "Monitor NVIDIA and AMD GPU utilization, memory, temperature, and power consumption with OpenTelemetry"
+---
+
+OpenLIT collects GPU performance metrics from NVIDIA and AMD GPUs using two methods: the Python SDK (for in-process collection) and the standalone OTel GPU Collector Docker image (for infrastructure-level collection). Both methods emit metrics to any OTLP-compatible backend.
+
+## Supported GPUs
+
+| GPU vendor | Collection method | Requirements |
+|---|---|---|
+| NVIDIA | SDK or Collector | `nvidia-smi` installed, CUDA drivers |
+| AMD | SDK or Collector | ROCm drivers installed |
+
+## Enable GPU metrics via the SDK
+
+To collect GPU metrics directly from your Python application, enable `collect_system_metrics` in `openlit.init()`:
+
+```python
+import openlit
+
+openlit.init(
+    otlp_endpoint="http://127.0.0.1:4318",
+    collect_system_metrics=True
+)
+```
+
+<Note>
+  The `collect_gpu_stats` parameter is deprecated. Use `collect_system_metrics=True` instead. It collects GPU metrics alongside CPU, memory, disk, and network metrics.
+</Note>
+
+## Enable GPU metrics via the OTel GPU Collector
+
+For infrastructure-level collection without modifying application code, run the OpenLIT OTel GPU Collector as a Docker container.
+
+<AccordionGroup>
+  <Accordion title="NVIDIA GPU">
+    <Steps>
+      <Step title="Pull the collector image">
+        ```shell
+        docker pull ghcr.io/openlit/otel-gpu-collector:latest
+        ```
+      </Step>
+
+      <Step title="Run the collector container">
+        ```shell
+        docker run --gpus all \\
+            -e GPU_APPLICATION_NAME='my-app' \\
+            -e GPU_ENVIRONMENT='production' \\
+            -e OTEL_EXPORTER_OTLP_ENDPOINT="http://127.0.0.1:4318" \\
+            ghcr.io/openlit/otel-gpu-collector:latest
+        ```
+      </Step>
+    </Steps>
+  </Accordion>
+
+  <Accordion title="AMD GPU">
+    <Steps>
+      <Step title="Pull the collector image">
+        ```shell
+        docker pull ghcr.io/openlit/otel-gpu-collector:latest
+        ```
+      </Step>
+
+      <Step title="Run the collector container">
+        AMD GPU collection uses the same collector image. Ensure ROCm drivers are installed on the host:
+
+        ```shell
+        docker run \\
+            -e GPU_APPLICATION_NAME='my-app' \\
+            -e GPU_ENVIRONMENT='production' \\
+            -e OTEL_EXPORTER_OTLP_ENDPOINT="http://127.0.0.1:4318" \\
+            ghcr.io/openlit/otel-gpu-collector:latest
+        ```
+      </Step>
+    </Steps>
+  </Accordion>
+
+  <Accordion title="Docker Compose deployment">
+    Add the collector as a service in your existing `docker-compose.yml`:
+
+    ```yaml
+    otel-gpu-collector:
+      image: ghcr.io/openlit/otel-gpu-collector:latest
+      environment:
+        GPU_APPLICATION_NAME: 'my-app'
+        GPU_ENVIRONMENT: 'production'
+        OTEL_EXPORTER_OTLP_ENDPOINT: "http://otel-collector:4318"
+      device_requests:
+        - driver: nvidia
+          count: all
+          capabilities: [gpu]
+      depends_on:
+        - otel-collector
+      restart: always
+    ```
+  </Accordion>
+</AccordionGroup>
+
+## Collector environment variables
+
+| Variable | Description | Default |
+|---|---|---|
+| `GPU_APPLICATION_NAME` | Application name tag for GPU metrics | `default_app` |
+| `GPU_ENVIRONMENT` | Environment name (e.g., `production`, `staging`) | `production` |
+| `OTEL_EXPORTER_OTLP_ENDPOINT` | OTLP endpoint to send metrics to | Required |
+| `OTEL_EXPORTER_OTLP_HEADERS` | Authentication headers for the OTLP endpoint | — |
+
+## Metrics collected
+
+The following metrics are emitted per GPU device:
+
+| Metric | Unit | Description |
+|---|---|---|
+| `gpu.utilization` | % | GPU compute utilization |
+| `gpu.enc.utilization` | % | Video encoder utilization |
+| `gpu.dec.utilization` | % | Video decoder utilization |
+| `gpu.memory.used` | MiB | GPU memory currently in use |
+| `gpu.memory.free` | MiB | Available GPU memory |
+| `gpu.memory.total` | MiB | Total GPU memory |
+| `gpu.memory.utilization` | % | GPU memory utilization |
+| `gpu.temperature` | °C | GPU core temperature |
+| `gpu.fan_speed` | % | Fan speed |
+| `gpu.power.draw` | W | Current power draw |
+| `gpu.power.limit` | W | Power cap |
+
+## Metric attribute tags
+
+Every GPU metric includes the following resource attributes:
+
+| Attribute | Description | Example |
+|---|---|---|
+| `gpu.index` | GPU device index | `0` |
+| `gpu.uuid` | Unique GPU device identifier | `GPU-abc123` |
+| `gpu.name` | GPU model name | `NVIDIA A100 80GB` |
+| `application_name` | Application name from `GPU_APPLICATION_NAME` | `my-app` |
+| `environment` | Environment from `GPU_ENVIRONMENT` | `production` |
+
+---
+
+<CardGroup cols={3}>
+  <Card title="LLM provider integrations" href="/sdk/integrations/llm-providers" icon="microchip-ai">
+    Trace LLM calls with token counts, cost, and latency
+  </Card>
+  <Card title="Configuration" href="/sdk/configuration" icon="sliders">
+    Full reference for all openlit.init() parameters
+  </Card>
+  <Card title="Destinations" href="/sdk/destinations/overview" icon="link">
+    Send GPU metrics to Datadog, Grafana, New Relic, and other backends
+  </Card>
+</CardGroup>

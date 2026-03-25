@@ -1,0 +1,51 @@
+---
+title: "Evaluations overview"
+description: "Automated eval scoring, hallucination detection, bias monitoring, and toxicity analysis for LLM applications"
+---
+
+OpenLIT provides two complementary evaluation approaches that help you assess and monitor the quality, safety, and performance of your LLM outputs — across both production traffic and your development pipeline.
+
+## Why evaluations?
+
+Evaluation is essential for building reliable AI applications. Without it, quality issues, hallucinations, and unsafe outputs can reach users undetected. OpenLIT evaluations give you:
+
+- **Quality and safety assurance** — detect hallucinations, bias, toxicity, and ensure consistent, reliable AI outputs
+- **Performance monitoring** — track model performance over time and measure response quality across different scenarios
+- **Risk mitigation** — catch potential issues before they reach users and ensure compliance with safety standards
+- **Cost optimization** — monitor the cost-effectiveness of different AI configurations and model choices
+- **Continuous improvement** — build data-driven insights for A/B testing, optimization, and iterative development
+
+## Evaluation approaches
+
+OpenLIT offers two approaches, each suited to a different stage and workflow.
+
+### LLM-as-a-judge
+
+LLM-as-a-judge is an **online, automatic** evaluation that runs directly against your production traces — no code changes or SDK integration required. Once configured in the UI, OpenLIT evaluates LLM responses as they arrive, scoring them for hallucination, bias, toxicity, and more.
+
+Use LLM-as-a-judge when you want to:
+
+- Monitor production traffic continuously without touching your application code
+- Apply sampling and scheduling to control evaluation costs
+- View evaluation scores alongside trace details in the OpenLIT dashboard
+
+### Programmatic evaluations
+
+Programmatic evaluations use the **OpenLIT Python SDK** to run evaluations directly in your code. You call evaluators explicitly with specific prompts, contexts, and LLM outputs, and receive structured results you can assert on or log.
+
+Use programmatic evaluations when you want to:
+
+- Integrate quality gates into your CI/CD pipeline
+- Evaluate model outputs during development and testing
+- Build custom evaluation workflows with fine-grained control over thresholds and categories
+
+---
+
+<CardGroup cols={2}>
+  <Card title="LLM-as-a-judge" href="/openlit/evaluations/llm-as-a-judge" icon="gavel">
+    Automatically evaluate production traces for quality and safety — zero setup required
+  </Card>
+  <Card title="Programmatic evaluations" href="/openlit/evaluations/programmatic" icon="bolt">
+    Call evaluators directly from your Python code for testing and CI/CD quality gates
+  </Card>
+</CardGroup>

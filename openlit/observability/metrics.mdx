@@ -1,0 +1,95 @@
+---
+title: "Metrics"
+description: "Visualize OpenTelemetry metrics from your AI applications using OpenLIT dashboards."
+---
+
+OpenLIT stores all OpenTelemetry metrics emitted by your AI applications in ClickHouse. You visualize those metrics by building dashboard widgets — there is no separate metrics explorer page. Every chart, stat tile, or table in a dashboard executes a SQL query directly against the metrics data, giving you full flexibility over aggregation, filtering, and time bucketing.
+
+Navigate to **Dashboards** to start building metric visualizations.
+
+## AI metrics
+
+When you instrument your application with the OpenLIT SDK, the following metrics are emitted automatically for every LLM and AI operation:
+
+### Request metrics
+
+| Metric | Type | Description |
+|---|---|---|
+| `gen_ai.requests` | Counter | Total number of AI API requests |
+| `gen_ai.errors` | Counter | Number of failed requests |
+
+### Latency metrics
+
+| Metric | Type | Description |
+|---|---|---|
+| `gen_ai.duration` | Histogram | End-to-end request duration in milliseconds |
+| `gen_ai.time_to_first_token` | Histogram | Time from request start to first token received (streaming) |
+
+### Token usage metrics
+
+| Metric | Type | Description |
+|---|---|---|
+| `gen_ai.usage.input_tokens` | Counter | Cumulative prompt tokens consumed |
+| `gen_ai.usage.output_tokens` | Counter | Cumulative completion tokens generated |
+| `gen_ai.usage.total_tokens` | Counter | Total tokens (input + output) |
+
+### Cost metrics
+
+| Metric | Type | Description |
+|---|---|---|
+| `gen_ai.usage.cost` | Counter | Estimated cost in USD, accumulated per operation |
+
+All metrics are tagged with attributes including `gen_ai.system` (provider), `gen_ai.request.model` (model name), `deployment.environment`, and `service.name`. You can filter and group by any of these attributes in your dashboard queries.
+
+## GPU metrics
+
+If you have GPU monitoring enabled, OpenLIT collects hardware-level metrics from each GPU in your inference cluster:
+
+| Metric | Description |
+|---|---|
+| `gpu.utilization` | GPU core utilization percentage |
+| `gpu.memory.used` | GPU memory currently in use (bytes) |
+| `gpu.memory.free` | Available GPU memory (bytes) |
+| `gpu.memory.utilization` | GPU memory utilization percentage |
+| `gpu.temperature` | GPU temperature in degrees Celsius |
+| `gpu.power.draw` | Current power draw (watts) |
+| `gpu.power.limit` | Configured power limit (watts) |
+
+GPU metrics are tagged with `gpu.index` and `gpu.uuid` so you can break down utilization per device. Correlate GPU utilization with LLM request rate to understand whether your inference hardware is the bottleneck.
+
+<Tip>
+  Pin a GPU utilization widget next to your LLM latency chart on the same dashboard to quickly spot when high latency correlates with GPU saturation.
+</Tip>
+
+## How metrics flow to dashboards
+
+The data path is straightforward:
+
+1. Your instrumented application emits OTLP metrics to OpenLIT (or via an OpenTelemetry Collector).
+2. OpenLIT ingests and stores metrics in ClickHouse.
+3. Dashboard widgets query ClickHouse using SQL defined in the widget editor.
+4. Charts render in real time, with automatic refresh on the interval you configure.
+
+Because widgets use raw SQL, you can write any aggregation supported by ClickHouse — percentiles, moving averages, rate calculations, or joins across metrics and traces.
+
+## Prometheus-compatible metrics
+
+<Note>
+  If you route telemetry through the OpenTelemetry Collector bundled with OpenLIT, you can add a `prometheusremotewrite` or `prometheus` exporter to the collector pipeline to expose a Prometheus-compatible scrape endpoint alongside the ClickHouse storage path.
+</Note>
+
+This lets you reuse existing Prometheus-based alerting rules and Grafana dashboards while still storing the full telemetry history in OpenLIT.
+
+---
+
+<CardGroup cols={3}>
+  <Card title="Quickstart: LLM Observability" href="/openlit/quickstart" icon="bolt">
+    Production-ready AI monitoring setup in a single line of code
+  </Card>
+  <Card title="Create a dashboard" href="/openlit/dashboards/overview" icon="grid">
+    Create custom visualizations with flexible widgets, queries, and real-time AI monitoring
+  </Card>
+  <Card title="Integrations" href="/sdk/integrations/overview" icon="circle-nodes">
+    60+ AI integrations with automatic instrumentation and performance tracking
+  </Card>
+</CardGroup>

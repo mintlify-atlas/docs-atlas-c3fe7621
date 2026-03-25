@@ -1,0 +1,137 @@
+---
+title: "Send to OpenLIT"
+description: "Configure the OpenLIT SDK to send traces and metrics to a self-hosted OpenLIT platform instance"
+---
+
+OpenLIT ships with a built-in OpenTelemetry Collector. When you self-host the OpenLIT platform, it exposes an OTLP HTTP endpoint on port `4318` that accepts traces, metrics, and logs from your applications.
+
+## Get started
+
+<Steps>
+  <Step title="Deploy the OpenLIT platform">
+    If you haven't deployed OpenLIT yet, follow the [Installation Guide](/openlit/installation) to set it up.
+
+    Common platform endpoints:
+
+    | Deployment | Endpoint |
+    |---|---|
+    | Local development | `http://127.0.0.1:4318` |
+    | Docker Compose | `http://localhost:4318` |
+    | Kubernetes | `http://openlit.openlit.svc.cluster.local:4318` |
+    | External / Ingress | Your configured external endpoint |
+  </Step>
+
+  <Step title="Install the OpenLIT SDK">
+    <Tabs>
+      <Tab title="Python">
+        ```shell
+        pip install openlit
+        ```
+      </Tab>
+      <Tab title="TypeScript">
+        ```shell
+        npm install openlit
+        ```
+      </Tab>
+    </Tabs>
+  </Step>
+
+  <Step title="Configure the SDK to send to OpenLIT">
+    <Tabs>
+      <Tab title="Python">
+        **Using function arguments:**
+
+        ```python
+        import openlit
+
+        openlit.init(
+            otlp_endpoint="http://127.0.0.1:4318"
+        )
+        ```
+
+        **Using environment variables:**
+
+        ```shell
+        export OTEL_EXPORTER_OTLP_ENDPOINT="http://127.0.0.1:4318"
+        export OTEL_SERVICE_NAME="my-ai-service"
+        export OTEL_DEPLOYMENT_ENVIRONMENT="production"
+        ```
+
+        ```python
+        import openlit
+
+        openlit.init()
+        ```
+      </Tab>
+      <Tab title="TypeScript">
+        **Using function arguments:**
+
+        ```typescript
+        import Openlit from 'openlit';
+
+        Openlit.init({
+            otlpEndpoint: 'http://127.0.0.1:4318'
+        });
+        ```
+
+        **Using environment variables:**
+
+        ```shell
+        export OTEL_EXPORTER_OTLP_ENDPOINT="http://127.0.0.1:4318"
+        ```
+
+        ```typescript
+        import Openlit from 'openlit';
+
+        Openlit.init();
+        ```
+      </Tab>
+    </Tabs>
+
+    Replace `http://127.0.0.1:4318` with your actual OpenLIT platform endpoint if different.
+  </Step>
+</Steps>
+
+## No authentication required
+
+By default, the OpenLIT platform's OTLP endpoint does not require authentication headers. You only need to set `otlp_endpoint`.
+
+<Note>
+  If you expose the OpenLIT platform endpoint externally via an ingress or load balancer, configure authentication at the infrastructure level (e.g., mutual TLS or an API gateway) rather than in the SDK.
+</Note>
+
+## Full example
+
+```python
+import openlit
+import openai
+
+openlit.init(
+    otlp_endpoint="http://127.0.0.1:4318",
+    service_name="my-ai-service",
+    environment="production"
+)
+
+client = openai.OpenAI()
+response = client.chat.completions.create(
+    model="gpt-4o",
+    messages=[{"role": "user", "content": "Hello!"}]
+)
+print(response.choices[0].message.content)
+```
+
+Traces from this application appear in the OpenLIT platform under the service name `my-ai-service`.
+
+---
+
+<CardGroup cols={3}>
+  <Card title="Send to Grafana Cloud" href="/sdk/destinations/grafana" icon="chart-line">
+    Configure the Grafana OTLP gateway endpoint and Basic Auth headers
+  </Card>
+  <Card title="Send to Datadog" href="/sdk/destinations/datadog" icon="dog">
+    Route traces through the Datadog Agent to the Datadog backend
+  </Card>
+  <Card title="Integrations" href="/sdk/integrations/overview" icon="circle-nodes">
+    60+ LLM providers, AI frameworks, and vector databases
+  </Card>
+</CardGroup>

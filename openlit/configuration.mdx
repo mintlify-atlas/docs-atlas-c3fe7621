@@ -1,0 +1,177 @@
+---
+title: "Configuration"
+description: "Environment variables for configuring your OpenLIT deployment"
+---
+
+OpenLIT is configured through environment variables. Set these in your `.env` file, Docker Compose environment section, or Kubernetes secrets.
+
+## Database
+
+<ResponseField name="INIT_DB_HOST" required>
+  Host address of the ClickHouse server.
+
+  **Default**: `127.0.0.1`
+
+  ```bash
+  INIT_DB_HOST=127.0.0.1
+  ```
+</ResponseField>
+
+<ResponseField name="INIT_DB_PORT" required>
+  Port on which ClickHouse listens for HTTP connections.
+
+  **Default**: `8123`
+
+  ```bash
+  INIT_DB_PORT=8123
+  ```
+</ResponseField>
+
+<ResponseField name="INIT_DB_DATABASE" required>
+  Name of the ClickHouse database for OpenLIT to use.
+
+  **Default**: `default`
+
+  ```bash
+  INIT_DB_DATABASE=default
+  ```
+</ResponseField>
+
+<ResponseField name="INIT_DB_USERNAME" required>
+  Username for authenticating with ClickHouse.
+
+  **Default**: `default`
+
+  ```bash
+  INIT_DB_USERNAME=default
+  ```
+</ResponseField>
+
+<ResponseField name="INIT_DB_PASSWORD" required>
+  Password for authenticating with ClickHouse.
+
+  **Default**: `OPENLIT`
+
+  ```bash
+  INIT_DB_PASSWORD=OPENLIT
+  ```
+</ResponseField>
+
+<ResponseField name="SQLITE_DATABASE_URL" required>
+  Path for the SQLite database that stores OpenLIT application data (users, prompts, vault entries).
+
+  **Default**: `file:/app/client/data/data.db`
+
+  ```bash
+  SQLITE_DATABASE_URL=file:/app/client/data/data.db
+  ```
+</ResponseField>
+
+## Authentication
+
+<ResponseField name="NEXTAUTH_URL">
+  Canonical URL of your OpenLIT deployment. Required for OAuth and session management in production.
+
+  ```bash
+  NEXTAUTH_URL=https://openlit.yourdomain.com
+  ```
+</ResponseField>
+
+<ResponseField name="NEXTAUTH_SECRET">
+  Secret used to encrypt NextAuth.js JWT tokens. Generate a secure value with:
+
+  ```bash
+  openssl rand -base64 32
+  ```
+
+  ```bash
+  NEXTAUTH_SECRET=your-secret-here
+  ```
+</ResponseField>
+
+## OAuth providers
+
+Configure OAuth to allow users to sign in with Google or GitHub. See the OAuth setup guide for detailed instructions.
+
+<ResponseField name="GOOGLE_CLIENT_ID">
+  Google OAuth client ID for Google sign-in.
+
+  ```bash
+  GOOGLE_CLIENT_ID=your-google-client-id
+  ```
+</ResponseField>
+
+<ResponseField name="GOOGLE_CLIENT_SECRET">
+  Google OAuth client secret for Google sign-in.
+
+  ```bash
+  GOOGLE_CLIENT_SECRET=your-google-client-secret
+  ```
+</ResponseField>
+
+<ResponseField name="GITHUB_CLIENT_ID">
+  GitHub OAuth client ID for GitHub sign-in.
+
+  ```bash
+  GITHUB_CLIENT_ID=your-github-client-id
+  ```
+</ResponseField>
+
+<ResponseField name="GITHUB_CLIENT_SECRET">
+  GitHub OAuth client secret for GitHub sign-in.
+
+  ```bash
+  GITHUB_CLIENT_SECRET=your-github-client-secret
+  ```
+</ResponseField>
+
+## Sample `.env` file
+
+```bash .env
+# ClickHouse Database
+INIT_DB_HOST="127.0.0.1"
+INIT_DB_PORT="8123"
+INIT_DB_DATABASE="default"
+INIT_DB_USERNAME="default"
+INIT_DB_PASSWORD="OPENLIT"
+SQLITE_DATABASE_URL="file:/app/client/data/data.db"
+
+# NextAuth (required for production)
+NEXTAUTH_URL="http://localhost:3000"
+NEXTAUTH_SECRET="your-secret-here"
+
+# OAuth Providers (optional)
+GOOGLE_CLIENT_ID="your-google-client-id"
+GOOGLE_CLIENT_SECRET="your-google-client-secret"
+GITHUB_CLIENT_ID="your-github-client-id"
+GITHUB_CLIENT_SECRET="your-github-client-secret"
+```
+
+## Environment file placement
+
+<Steps>
+  <Step title="Docker Compose">
+    Create a `.env` file in the same directory as `docker-compose.yml` (the repository root). Docker Compose loads it automatically.
+  </Step>
+  <Step title="Kubernetes">
+    Create a Kubernetes `Secret` and reference it in your Helm values or pod spec. Never commit secrets to source control.
+
+    ```bash
+    kubectl create secret generic openlit-config \
+      --from-env-file=.env \
+      --namespace openlit
+    ```
+  </Step>
+  <Step title="Development">
+    For local development, create a `.env` file in `src/client/` — Next.js loads it automatically.
+  </Step>
+</Steps>
+
+<CardGroup cols={2}>
+  <Card title="Quickstart" icon="bolt" href="/openlit/quickstart">
+    Get LLM observability running quickly
+  </Card>
+  <Card title="Dashboards" icon="grid" href="/openlit/dashboards/overview">
+    Build custom visualizations for your AI telemetry
+  </Card>
+</CardGroup>

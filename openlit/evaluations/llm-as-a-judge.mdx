@@ -1,0 +1,122 @@
+---
+title: "LLM-as-a-judge"
+description: "Automatically evaluate production LLM traces for quality and safety — no code changes required"
+---
+
+LLM-as-a-judge evaluates your LLM responses automatically as they appear in OpenLIT traces. You configure it once in the UI and it continuously scores every sampled response for hallucination, bias, toxicity, and other quality signals — without any changes to your application code.
+
+<Note>
+  LLM-as-a-judge requires that your application already sends traces to OpenLIT. If you haven't set up tracing yet, see the [tracing guide](/openlit/observability/tracing) first.
+</Note>
+
+## How it works
+
+When a trace arrives in OpenLIT, the evaluation engine extracts the LLM prompt and response, then sends them to a judge LLM with a structured scoring prompt. The judge returns a JSON object containing a numeric score (0–1), a classification, an explanation, and a pass/fail verdict. OpenLIT stores this result alongside the original trace so you can view it in the trace detail panel and query it in dashboards.
+
+The full evaluation loop is:
+
+1. Your application sends a trace to OpenLIT (via the SDK or OpenTelemetry)
+2. OpenLIT samples the trace according to your configured frequency
+3. The judge LLM scores the response across the enabled evaluation criteria
+4. Results are stored and surface in the trace detail view
+
+## Supported evaluation criteria
+
+LLM-as-a-judge can evaluate responses across three categories. Each category is broken into specific classification types that the judge LLM uses when reporting results.
+
+<Tabs>
+  <Tab title="Hallucination">
+    Detects when an LLM response contradicts or diverges from the provided context.
+
+    | Classification | Description |
+    |---|---|
+    | `factual_inaccuracy` | The response states facts that contradict the source context |
+    | `nonsensical_response` | The response is irrelevant to the prompt or context |
+    | `gibberish` | The response contains incoherent or meaningless text |
+    | `contradiction` | The response conflicts with itself or with the context |
+  </Tab>
+  <Tab title="Bias">
+    Detects language that reflects unfair assumptions or stereotypes about people.
+
+    | Classification | Description |
+    |---|---|
+    | `sexual_orientation` | Assumptions about an individual's sexual preferences |
+    | `age` | Stereotypes based on a person's age |
+    | `disability` | Assumptions about competence due to disability |
+    | `physical_appearance` | Judgments based on physical characteristics |
+    | `religion` | Prejudices connected to religious beliefs |
+    | `pregnancy_status` | Bias toward pregnant individuals or parents |
+    | `marital_status` | Assumptions based on relationship status |
+    | `nationality / location` | Stereotypes based on country or place of origin |
+    | `gender` | Assumptions about capabilities based on gender |
+    | `ethnicity` | Generalizations based on racial or ethnic background |
+    | `socioeconomic_status` | Bias based on economic or social position |
+  </Tab>
+  <Tab title="Toxicity">
+    Detects harmful or aggressive language in LLM responses.
+
+    | Classification | Description |
+    |---|---|
+    | `threat` | Language that threatens harm or negative consequences |
+    | `dismissive` | Language that belittles or disregards the user |
+    | `hate` | Hateful or derogatory language |
+    | `mockery` | Sarcastic or ridiculing language |
+    | `personal_attack` | Direct attacks on a person's character or intelligence |
+  </Tab>
+</Tabs>
+
+## Configure LLM-as-a-judge
+
+<Steps>
+  <Step title="Open the Evaluations page">
+    In the OpenLIT UI, navigate to **Evaluations** in the left sidebar. This page lists all configured evaluation rules and shows recent evaluation results.
+  </Step>
+  <Step title="Create a new evaluation rule">
+    Click **Create rule**. Configure the following settings:
+
+    - **Name** — a descriptive label for this evaluation rule
+    - **Judge model** — the LLM provider and model to use as the judge (e.g., `openai / gpt-4o-mini`)
+    - **API key** — the API key for the judge LLM provider
+    - **Evaluation criteria** — select one or more of: Hallucination, Bias, Toxicity, or All
+    - **Threshold score** — the cutoff score (0–1) above which a response is marked as failing. Defaults to `0.5`
+    - **Sampling rate** — the percentage of traces to evaluate. Lower rates reduce costs on high-volume applications
+  </Step>
+  <Step title="Enable the rule">
+    Toggle the rule to **Active**. OpenLIT will begin evaluating incoming traces according to the configured sampling rate.
+  </Step>
+</Steps>
+
+## View evaluation results
+
+Evaluation results appear in two places in the OpenLIT UI:
+
+**Trace detail panel** — open any trace and scroll to the Evaluations section to see the score, verdict, classification, and explanation for each evaluation that ran against that trace.
+
+**Evaluations dashboard** — the main Evaluations page shows aggregate evaluation results across all traces, including score distributions, verdict breakdowns, and trends over time. You can filter by evaluation type, time range, and model.
+
+<Tip>
+  If you see a high proportion of hallucination verdicts, cross-reference those traces with the prompts and context documents your application provides. A common cause is missing or stale context in RAG pipelines.
+</Tip>
+
+## Evaluation result fields
+
+Every evaluation result contains the following fields:
+
+| Field | Type | Description |
+|---|---|---|
+| `score` | `float` (0–1) | Numeric confidence that the issue is present. Closer to 1 means higher likelihood |
+| `evaluation` | `string` | The evaluation type: `hallucination`, `bias_detection`, or `toxicity_detection` |
+| `classification` | `string` | The specific sub-category detected (e.g., `factual_inaccuracy`, `age`) |
+| `explanation` | `string` | A short sentence explaining why the issue was detected |
+| `verdict` | `string` | `yes` if the score exceeds the threshold, `no` otherwise |
+
+---
+
+<CardGroup cols={2}>
+  <Card title="Programmatic evaluations" href="/openlit/evaluations/programmatic" icon="bolt">
+    Run evaluators directly in your Python code for CI/CD quality gates
+  </Card>
+  <Card title="Tracing" href="/openlit/observability/tracing" icon="chart-line">
+    Set up automatic LLM tracing as a prerequisite for LLM-as-a-judge
+  </Card>
+</CardGroup>

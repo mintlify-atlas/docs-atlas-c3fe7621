@@ -1,0 +1,215 @@
+---
+title: "Destinations"
+description: "Configure where the OpenLIT Operator sends AI telemetry — traces, metrics, and logs — by setting the OTLP endpoint and optional authentication headers in your AutoInstrumentation resource."
+---
+
+The OpenLIT Operator forwards telemetry to any OTLP-compatible backend. You configure the destination in the `spec.otlp` field of your `AutoInstrumentation` resource. This lets you consolidate AI observability data in your existing monitoring stack without additional pipeline components.
+
+## How destination routing works
+
+Every `AutoInstrumentation` resource has its own `spec.otlp` configuration. This means you can route different services to different backends by creating multiple `AutoInstrumentation` resources with different selectors and endpoints.
+
+```yaml
+spec:
+  otlp:
+    endpoint: "https://your-backend:4318"   # Required — OTLP HTTP endpoint
+    headers: "authorization=Bearer token"    # Optional — authentication headers
+    timeout: 30                              # Optional — seconds, default 30
+```
+
+## OpenLIT Platform
+
+Send telemetry to the OpenLIT observability platform deployed in your cluster. This is the recommended setup when running OpenLIT alongside the operator.
+
+```yaml
+apiVersion: openlit.io/v1alpha1
+kind: AutoInstrumentation
+metadata:
+  name: openlit-platform-instrumentation
+  namespace: default
+spec:
+  selector:
+    matchLabels:
+      instrument: "true"
+  python:
+    instrumentation:
+      provider: "openlit"
+      version: "latest"
+  otlp:
+    endpoint: "http://openlit.openlit.svc.cluster.local:4318"
+    timeout: 30
+  resource:
+    environment: "production"
+    serviceName: "my-ai-service"
+```
+
+<Note>
+  When the OpenLIT Platform is deployed in the same cluster, the endpoint `http://openlit.openlit.svc.cluster.local:4318` is the fully qualified in-cluster service address. If OpenLIT is deployed externally, use your external endpoint instead.
+</Note>
+
+## Grafana Cloud
+
+Send telemetry to Grafana Cloud's OTLP gateway. Retrieve your gateway URL and authentication header from **Grafana Cloud Portal → OpenTelemetry**.
+
+```yaml
+apiVersion: openlit.io/v1alpha1
+kind: AutoInstrumentation
+metadata:
+  name: grafana-cloud-instrumentation
+  namespace: default
+spec:
+  selector:
+    matchLabels:
+      instrument: "true"
+  python:
+    instrumentation:
+      provider: "openlit"
+      version: "latest"
+  otlp:
+    endpoint: "https://otlp-gateway-<zone>.grafana.net/otlp"
+    headers: "Authorization=Basic%20<base64-encoded-instance-id-and-api-token>"
+    timeout: 30
+  resource:
+    environment: "production"
+    serviceName: "my-ai-service"
+```
+
+Replace:
+- `https://otlp-gateway-<zone>.grafana.net/otlp` with the `OTEL_EXPORTER_OTLP_ENDPOINT` value from the Grafana Cloud portal
+- `Authorization=Basic%20...` with the `OTEL_EXPORTER_OTLP_HEADERS` value from the portal
+
+## Prometheus + Jaeger (via OpenTelemetry Collector)
+
+To route metrics to Prometheus and traces to Jaeger, deploy an OpenTelemetry Collector configured with both exporters and point the operator at the collector's OTLP endpoint.
+
+```yaml
+apiVersion: openlit.io/v1alpha1
+kind: AutoInstrumentation
+metadata:
+  name: otelcol-instrumentation
+  namespace: default
+spec:
+  selector:
+    matchLabels:
+      instrument: "true"
+  python:
+    instrumentation:
+      provider: "openlit"
+      version: "latest"
+  otlp:
+    endpoint: "http://otel-collector.monitoring.svc.cluster.local:4318"
+    timeout: 30
+  resource:
+    environment: "production"
+    serviceName: "my-ai-service"
+```
+
+<Note>
+  Ensure your OpenTelemetry Collector is configured to export metrics to Prometheus and traces to Jaeger before routing telemetry to it.
+</Note>
+
+## Datadog
+
+Send telemetry to Datadog through the Datadog Agent. The Datadog Agent handles authentication and forwards data to the Datadog platform.
+
+```yaml
+apiVersion: openlit.io/v1alpha1
+kind: AutoInstrumentation
+metadata:
+  name: datadog-instrumentation
+  namespace: default
+spec:
+  selector:
+    matchLabels:
+      instrument: "true"
+  python:
+    instrumentation:
+      provider: "openlit"
+      version: "latest"
+  otlp:
+    endpoint: "http://datadog-agent.default.svc.cluster.local:4318"
+    timeout: 30
+  resource:
+    environment: "production"
+    serviceName: "my-ai-service"
+```
+
+<Note>
+  Replace `datadog-agent.default.svc.cluster.local` with your actual Datadog Agent service name and namespace. The agent must be configured to accept OTLP traffic.
+</Note>
+
+## SigNoz
+
+Send telemetry directly to your SigNoz instance using an ingestion key for authentication.
+
+```yaml
+apiVersion: openlit.io/v1alpha1
+kind: AutoInstrumentation
+metadata:
+  name: signoz-instrumentation
+  namespace: default
+spec:
+  selector:
+    matchLabels:
+      instrument: "true"
+  python:
+    instrumentation:
+      provider: "openlit"
+      version: "latest"
+  otlp:
+    endpoint: "https://ingest.{region}.signoz.cloud:443"
+    headers: "signoz-access-token=YOUR_SIGNOZ_INGESTION_KEY"
+    timeout: 30
+  resource:
+    environment: "production"
+    serviceName: "my-ai-service"
+```
+
+Replace:
+- `https://ingest.{region}.signoz.cloud:443` with your SigNoz endpoint URL
+- `YOUR_SIGNOZ_INGESTION_KEY` with your SigNoz access token (e.g. `896cc137-xxxx-xxxx-b8a0-a6d7ab65f274`)
+
+## New Relic
+
+Send telemetry directly to New Relic's OTLP endpoint using your New Relic license key.
+
+```yaml
+apiVersion: openlit.io/v1alpha1
+kind: AutoInstrumentation
+metadata:
+  name: newrelic-instrumentation
+  namespace: default
+spec:
+  selector:
+    matchLabels:
+      instrument: "true"
+  python:
+    instrumentation:
+      provider: "openlit"
+      version: "latest"
+  otlp:
+    endpoint: "https://otlp.nr-data.net:443"
+    headers: "api-key=YOUR_NEWRELIC_LICENSE_KEY"
+    timeout: 30
+  resource:
+    environment: "production"
+    serviceName: "my-ai-service"
+```
+
+Replace `YOUR_NEWRELIC_LICENSE_KEY` with your New Relic license key (e.g. `acxxxxxxxxxxxxxxxx`).
+
+## Authentication patterns
+
+The `spec.otlp.headers` field accepts comma-separated `key=value` pairs. Use it to pass any HTTP headers required by your backend.
+
+| Backend type | Header format | Example |
+|---|---|---|
+| Bearer token | `authorization=Bearer <token>` | `authorization=Bearer eyJ...` |
+| API key | `x-api-key=<key>` | `x-api-key=secret456` |
+| SigNoz | `signoz-access-token=<key>` | `signoz-access-token=896cc...` |
+| New Relic | `api-key=<license-key>` | `api-key=acxxxxxxxxxx` |
+| Multiple headers | `key1=val1,key2=val2` | `authorization=Bearer t,x-tenant=prod` |
+
+<Tip>
+  Store sensitive values like API keys in Kubernetes Secrets and reference them via `spec.python.instrumentation.env[].valueFrom.secretKeyRef` rather than hardcoding them in the `AutoInstrumentation` resource.
+</Tip>

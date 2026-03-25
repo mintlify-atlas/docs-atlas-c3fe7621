@@ -1,0 +1,119 @@
+---
+title: "Cost tracking"
+description: "Automatic per-call LLM cost calculation with support for custom pricing for fine-tuned and private models."
+---
+
+OpenLIT automatically calculates the cost of every LLM API call and records it as a span attribute (`gen_ai.usage.cost`) and an OpenTelemetry metric. No configuration is needed for standard models — cost tracking is on by default.
+
+## How it works
+
+When your instrumented code calls an LLM, OpenLIT:
+
+1. Reads the token usage from the API response (`prompt_tokens`, `completion_tokens`).
+2. Looks up the per-token price for that model from the built-in pricing database.
+3. Calculates the cost in USD and attaches it to the span and metric.
+
+The built-in pricing database covers all major providers (OpenAI, Anthropic, Google, AWS Bedrock, and more) and is updated regularly.
+
+## Default pricing source
+
+By default, OpenLIT fetches pricing from:
+
+```
+https://raw.githubusercontent.com/openlit/openlit/main/assets/pricing.json
+```
+
+This file is updated when providers change their rates. You do not need to do anything to use it.
+
+## Custom pricing for fine-tuned or private models
+
+If you use a fine-tuned model or a model not in the default pricing database, specify a custom pricing file via the `pricing_json` parameter:
+
+```python
+import openlit
+
+# Load pricing from a local file
+openlit.init(
+    otlp_endpoint="http://127.0.0.1:4318",
+    pricing_json="/path/to/custom-pricing.json",
+)
+```
+
+```python
+import openlit
+
+# Load pricing from a remote URL
+openlit.init(
+    otlp_endpoint="http://127.0.0.1:4318",
+    pricing_json="https://example.com/pricing.json",
+)
+```
+
+You can also set it via environment variable:
+
+```bash
+export OPENLIT_PRICING_JSON=/path/to/custom-pricing.json
+```
+
+## Pricing JSON format
+
+Your custom pricing file must follow the same schema as the [default pricing file](https://raw.githubusercontent.com/openlit/openlit/main/assets/pricing.json). The structure groups models by provider and specifies costs in USD per 1,000 tokens:
+
+```json
+{
+  "chat": {
+    "my-fine-tuned-gpt4": {
+      "promptPrice": 0.03,
+      "completionPrice": 0.06
+    },
+    "my-internal-model": {
+      "promptPrice": 0.005,
+      "completionPrice": 0.015
+    }
+  },
+  "embedding": {
+    "my-embedding-model": {
+      "promptPrice": 0.0001
+    }
+  }
+}
+```
+
+| Field | Type | Description |
+|---|---|---|
+| `promptPrice` | `float` | Cost per 1,000 input (prompt) tokens in USD |
+| `completionPrice` | `float` | Cost per 1,000 output (completion) tokens in USD |
+
+<Note>
+  If a model is not found in your custom pricing file, OpenLIT falls back to the default pricing database. If the model is not found there either, the `gen_ai.usage.cost` attribute is omitted from the span.
+</Note>
+
+## Disable cost tracking
+
+To disable all metrics collection, including cost tracking:
+
+```python
+import openlit
+
+openlit.init(disable_metrics=True)
+```
+
+## Cost in traces
+
+Cost appears as the `gen_ai.usage.cost` span attribute on every instrumented LLM call. You can filter, group, and aggregate this attribute in any OTel-compatible backend to build cost dashboards, set alerts, or attribute costs to specific users or features.
+
+<Tip>
+  Use the `service_name` and `environment` parameters in `openlit.init()` to segment costs by application and deployment stage (development vs. production) in your observability backend.
+</Tip>
+
+<CardGroup cols={3}>
+  <Card title="Configuration" href="/sdk/configuration" icon="sliders">
+    Full openlit.init() parameter reference including pricing_json
+  </Card>
+  <Card title="Tracing" href="/sdk/features/tracing" icon="chart-line">
+    All span attributes captured per LLM call
+  </Card>
+  <Card title="Destinations" href="/sdk/destinations/overview" icon="link">
+    Send cost metrics to Datadog, Grafana, New Relic, and more
+  </Card>
+</CardGroup>
